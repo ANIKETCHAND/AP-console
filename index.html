@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AP — Authenticity &amp; Provenance Console</title>
+  <meta name="description" content="Advanced media forensics and threat intelligence exposure console for deepfake detection, signal analysis, domain vulnerability scanning, and dark web exposure audit.">
+  
+  <!-- Modern Typography & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="style.css">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <!-- jsPDF for PDF export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+
+  <!-- Ambient Cybernetic Texture & Scanlines -->
+  <div class="cyber-grid" aria-hidden="true"></div>
+  <canvas id="cyber3DCanvas" aria-hidden="true"></canvas>
+
+  <!-- AUTH / SIGN-IN GATE MODAL -->
+  <div class="auth-overlay" id="loginGate">
+    <div class="auth-card">
+      <div class="auth-header">
+        <div class="brand-emblem">
+          <img src="logo.jpg" alt="AP Consoles Logo" class="brand-logo-img modal-logo">
+        </div>
+        <div class="brand-titles">
+          <span class="brand-title">AP CONSOLE</span>
+          <span class="brand-subtitle">Authenticity &amp; Provenance Forensics</span>
+        </div>
+      </div>
+
+      <div class="auth-body">
+        <div class="auth-badge">CLASSIFIED FORENSICS &bull; INVESTIGATIVE DOSSIER</div>
+        <h2>Access Control &amp; Session Management</h2>
+        <p class="auth-desc">
+          Sign in with Google to save forensic cases, track domain threat scans across sessions, and maintain persistent investigative audit logs.
+        </p>
+
+        <div id="googleSignInBtn" class="google-btn-container"></div>
+        <div class="auth-divider"><span>OR</span></div>
+
+        <button class="btn-guest" id="guestContinueBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="btn-icon">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+            <polyline points="10 17 15 12 10 7"/>
+            <line x1="15" y1="12" x2="3" y2="12"/>
+          </svg>
+          Continue as Guest &mdash; Direct Access
+        </button>
+
+        <p class="auth-note">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="note-icon"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          Guests enjoy complete access to media analysis and domain exposure scanning. History saving requires Google login.
+        </p>
+        <p class="login-hint" id="loginHint"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN CONSOLE APPLICATION SHELL -->
+  <div class="app-shell" id="appShell">
+
+    <!-- TOP HEADER -->
+    <header class="console-header">
+      <div class="brand">
+        <div class="brand-mark">
+          <img src="logo.jpg" alt="AP Consoles Logo" class="brand-logo-img">
+        </div>
+        <div class="brand-text">
+          <span class="brand-name">AP <span class="accent-text">CONSOLES</span></span>
+          <span class="brand-sub">AUTHENTICITY &amp; PROVENANCE ENGINE</span>
+        </div>
+      </div>
+
+      <div class="case-meta">
+        <div class="case-number-box">
+          <span class="case-label">ACTIVE DOSSIER</span>
+          <span class="case-number" id="caseNumber">CASE NO. AP-2026-0000</span>
+          <button class="btn-copy-case" id="copyCaseBtn" title="Copy Case ID">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+        </div>
+
+        <div class="status-chip">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="apiStatus">Engine Connecting...</span>
+        </div>
+
+        <!-- Account State (Signed In vs Guest) -->
+        <div class="user-chip" id="userChip">
+          <div class="user-info-wrap" id="userInfoWrap" hidden>
+            <img id="userAvatar" class="user-avatar" alt="Avatar" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'36\' height=\'36\' viewBox=\'0 0 36 36\'%3E%3Ccircle cx=\'18\' cy=\'18\' r=\'17\' fill=\'%23ff0040\' stroke=\'%23ffffff\' stroke-width=\'1.5\'/%3E%3Ctext x=\'18\' y=\'23\' font-family=\'sans-serif\' font-size=\'16\' font-weight=\'bold\' fill=\'%23ffffff\' text-anchor=\'middle\'%3EA%3C/text%3E%3C/svg%3E';">
+            <span id="userName" class="user-name">Investigator</span>
+            <button class="btn-logout" id="logoutBtn" title="Sign Out">Sign Out</button>
+          </div>
+          <button class="btn-signin-nav" id="navSignInBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="btn-icon-sm"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Sign In with Google
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- DOSSIER WORKSPACE MAIN -->
+    <main class="dossier">
+
+      <!-- 3D ROTATING EARTH GLOBE RADAR -->
+      <div class="globe-header-wrap">
+        <canvas id="globeCanvas" width="160" height="160"></canvas>
+      </div>
+
+      <!-- 6 MAIN SECTION TABS WITH DISTINCTIVE ICONS -->
+      <nav class="exhibit-tabs" role="tablist" aria-label="Forensic Investigation Toolsets">
+        <button class="tab active" data-tab="image" role="tab" id="tab-image">
+            <span class="tab-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
+            </span>
+            <span class="tab-label">Image</span>
+          </button>
+
+        <button class="tab" data-tab="video" role="tab" id="tab-video">
+          <span class="tab-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="4" width="20" height="16" rx="2.18" ry="2.18"/>
+              <line x1="7" y1="4" x2="7" y2="20"/>
+              <line x1="17" y1="4" x2="17" y2="20"/>
+              <line x1="2" y1="12" x2="22" y2="12"/>
+              <line x1="2" y1="8" x2="7" y2="8"/>
+              <line x1="2" y1="16" x2="7" y2="16"/>
+              <line x1="17" y1="16" x2="22" y2="16"/>
+              <line x1="17" y1="8" x2="22" y2="8"/>
+            </svg>
+          </span>
+          <span class="tab-label">Video</span>
+        </button>
+
+        <button class="tab" data-tab="audio" role="tab" id="tab-audio">
+          <span class="tab-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="23"/>
+              <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+          </span>
+          <span class="tab-label">Voice</span>
+        </button>
+
+        <button class="tab" data-tab="live" role="tab" id="tab-live">
+          <span class="tab-icon live-tab-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 7l-7 5 7 5V7z"/>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+            </svg>
+          </span>
+          <span class="tab-label">Live Feed</span>
+        </button>
+
+        <button class="tab" data-tab="intel" role="tab" id="tab-intel">
+          <span class="tab-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+          </span>
+          <span class="tab-label">Threat Intel</span>
+        </button>
+
+        <button class="tab" data-tab="history" role="tab" id="tab-history">
+          <span class="tab-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+              <polyline points="10 9 9 9 8 9"/>
+            </svg>
+          </span>
+          <span class="tab-label">History</span>
+        </button>
+      </nav>
+      </div>
+
+      <!-- WORKSPACE PANELS -->
+      <section class="workspace">
+
+        <!-- 1. IMAGE FORENSICS PANEL -->
+        <div class="panel active" id="panel-image">
+          <div class="dropzone" data-target="imageInput" data-accept="image" id="dzImage">
+            <input type="file" id="imageInput" accept=".jpg,.jpeg,.png,.bmp,.webp" hidden>
+            <div class="dz-illustration">
+              <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2" class="dz-svg">
+                <rect x="8" y="12" width="48" height="40" rx="4" ry="4"/>
+                <circle cx="24" cy="26" r="5"/>
+                <path d="M56 42l-14-14-22 22"/>
+                <path d="M40 52l16-16"/>
+              </svg>
+            </div>
+            <h3 class="dz-title">Submit Image Evidence for Forensics</h3>
+            <p class="dz-sub">Drag &amp; drop file or click to browse &bull; JPG &bull; PNG &bull; WEBP &bull; BMP &bull; Up to 80MB</p>
+          </div>
+
+          <div class="preview-row" id="preview-image"></div>
+          <div class="action-bar" id="action-image" hidden>
+            <button class="btn-primary" id="btnAnalyzeImage">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              Execute Image Forensics Examination
+            </button>
+          </div>
+        </div>
+
+        <!-- 2. VIDEO FORENSICS PANEL -->
+        <div class="panel" id="panel-video">
+          <div class="dropzone" data-target="videoInput" data-accept="video" id="dzVideo">
+            <input type="file" id="videoInput" accept=".mp4,.mov,.avi,.webm,.mkv" hidden>
+            <div class="dz-illustration">
+              <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2" class="dz-svg">
+                <rect x="6" y="14" width="52" height="36" rx="4"/>
+                <polygon points="26,24 42,32 26,40" fill="currentColor"/>
+              </svg>
+            </div>
+            <h3 class="dz-title">Submit Video Evidence for Forensics</h3>
+            <p class="dz-sub">Drag &amp; drop file or click to browse &bull; MP4 &bull; MOV &bull; WEBM &bull; MKV &bull; Up to 80MB</p>
+          </div>
+
+          <div class="preview-row" id="preview-video"></div>
+          <div class="action-bar" id="action-video" hidden>
+            <button class="btn-primary" id="btnAnalyzeVideo">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+              Execute Video Temporal &amp; Artifact Examination
+            </button>
+          </div>
+        </div>
+
+        <!-- 3. VOICE FORENSICS PANEL -->
+        <div class="panel" id="panel-audio">
+          <div class="dropzone" data-target="audioInput" data-accept="audio" id="dzAudio">
+            <input type="file" id="audioInput" accept=".wav,.mp3,.m4a,.flac,.ogg" hidden>
+            <div class="dz-illustration">
+              <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2" class="dz-svg">
+                <line x1="8" y1="32" x2="8" y2="32.01"/>
+                <line x1="16" y1="20" x2="16" y2="44"/>
+                <line x1="24" y1="12" x2="24" y2="52"/>
+                <line x1="32" y1="6" x2="32" y2="58"/>
+                <line x1="40" y1="16" x2="40" y2="48"/>
+                <line x1="48" y1="24" x2="48" y2="40"/>
+                <line x1="56" y1="32" x2="56" y2="32.01"/>
+              </svg>
+            </div>
+            <h3 class="dz-title">Submit Voice / Audio Evidence</h3>
+            <p class="dz-sub">Drag &amp; drop clip or click to browse &bull; WAV &bull; MP3 &bull; M4A &bull; FLAC &bull; OGG &bull; Up to 80MB</p>
+          </div>
+
+          <div class="preview-row" id="preview-audio"></div>
+          <div class="action-bar" id="action-audio" hidden>
+            <button class="btn-primary" id="btnAnalyzeAudio">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+              Execute Pitch &amp; Spectral Forensics Analysis
+            </button>
+          </div>
+        </div>
+
+        <!-- 4. LIVE WEBCAM SCAN PANEL -->
+        <div class="panel" id="panel-live">
+          <div class="live-console-grid">
+            <div class="live-viewport-card">
+              <div class="live-viewport-header">
+                <span class="viewport-title">WEBCAM LIVE FEED SCANNER</span>
+                <span class="live-badge" id="liveBadge">OFFLINE</span>
+              </div>
+              <div class="live-video-container">
+                <video id="webcamVideo" autoplay playsinline muted></video>
+                <canvas id="webcamCanvas" hidden></canvas>
+
+                <!-- Tactical Reticle Framing Overlay -->
+                <div class="reticle-overlay" aria-hidden="true">
+                  <div class="reticle-corner tl"></div>
+                  <div class="reticle-corner tr"></div>
+                  <div class="reticle-corner bl"></div>
+                  <div class="reticle-corner br"></div>
+                  <div class="reticle-crosshair"></div>
+                </div>
+
+                <div class="live-verdict-overlay" id="liveVerdictOverlay" hidden>
+                  <span class="verdict-mini-stamp" id="liveVerdictStamp">ANALYZING</span>
+                  <span class="verdict-mini-score" id="liveVerdictScore">--%</span>
+                </div>
+              </div>
+
+              <div class="live-control-toolbar">
+                <button class="btn-primary btn-live-start" id="webcamToggle">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                  Start Real-Time Scan
+                </button>
+                <span class="live-fps-counter" id="liveFpsCounter">Interval: 2.5s &bull; Direct Frame Injection</span>
+              </div>
+            </div>
+
+            <div class="live-log-card">
+              <div class="live-log-header">
+                <h3>REAL-TIME AUDIT LOG STREAM</h3>
+                <span class="log-count" id="logCount">0 events</span>
+              </div>
+              <p class="live-hint">
+                Captures &amp; streams video frames to backend every 2.5 seconds using <code class="mono-code">X-Live-Frame: 1</code> header. Frames are analyzed in memory and discarded immediately.
+              </p>
+              <div class="live-log-feed" id="liveLog">
+                <div class="log-empty">Webcam offline. Click "Start Real-Time Scan" to initiate frame capture stream.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. THREAT INTEL / EXPOSURE SCANNER PANEL -->
+        <div class="panel" id="panel-intel">
+          <div class="intel-scan-box">
+            <div class="intel-box-header">
+              <div class="intel-box-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="title-icon"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                Threat Intelligence &amp; Exposure Audit Engine
+              </div>
+              <span class="intel-tag">REAL-TIME OSINT &bull; BREACH &bull; PHISHING &bull; INFRA</span>
+            </div>
+
+            <p class="dz-sub">
+              Query a corporate domain or employee email address to audit credential breaches, spoofing look-alikes, GitHub secrets, Shodan open ports, and dark web ransomware mentions.
+            </p>
+
+            <div class="intel-input-row">
+              <div class="intel-input-wrapper">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="input-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" id="intelTarget" class="intel-input" placeholder="e.g. acme-corp.com or jane.doe@acme-corp.com" autocomplete="off" spellcheck="false">
+              </div>
+              <button class="btn-primary" id="intelScanBtn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                Run Exposure Scan
+              </button>
+            </div>
+
+            <div class="intel-quick-samples">
+              <span class="samples-label">QUICK SAMPLE TARGETS:</span>
+              <button class="intel-chip" data-target="acme-corp.com">acme-corp.com</button>
+              <button class="intel-chip" data-target="jane.doe@acme-corp.com">jane.doe@acme-corp.com</button>
+              <button class="intel-chip" data-target="northwind-traders.io">northwind-traders.io</button>
+            </div>
+          </div>
+
+          <!-- INTEL RESULTS VIEW -->
+          <div class="intel-results" id="intelResults" hidden>
+            <div class="intel-results-header">
+              <div class="intel-target-meta">
+                <span class="target-title" id="intelTargetLabel">acme-corp.com</span>
+                <span class="risk-badge" id="riskBadge">LOW RISK</span>
+              </div>
+              <div class="intel-header-actions">
+                <span class="results-meta" id="intelMeta">Resolved domain: acme-corp.com</span>
+                <button class="btn-export" id="btnExportScanPDF" title="Download PDF Report">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="12" y2="18"/><line x1="15" y1="15" x2="12" y2="18"/></svg>
+                  Export PDF
+                </button>
+              </div>
+            </div>
+
+            <!-- AI Risk Summary -->
+            <div class="intel-summary-card">
+              <div class="summary-card-header">
+                <h3>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="card-icon"><path d="M12 2a10 10 0 1 0 10 10H12V2z"/><path d="M12 12L2.1 10a10.05 10.05 0 0 1 9.9-8v10z"/></svg>
+                  AI Risk Executive Summary
+                </h3>
+                <span class="source-tag" id="intelSummarySource">LIVE LLM ANALYSIS</span>
+              </div>
+              <p id="intelSummaryText" class="summary-body">Scanning target exposure profile...</p>
+            </div>
+
+            <!-- Recommended Actions Checklist -->
+            <div class="intel-actions-card">
+              <h3>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="card-icon"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                Recommended Incident Mitigation Actions
+              </h3>
+              <ul id="intelActionsList" class="actions-checklist"></ul>
+            </div>
+
+            <!-- 5 Exposure Cards Grid -->
+            <div class="intel-exposures-grid" id="intelExposuresGrid"></div>
+
+            <!-- Pinned AI Follow-up Chat Box -->
+            <div class="intel-chat-card">
+              <div class="chat-card-header">
+                <h3>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="card-icon"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                  Investigative AI Assistant &mdash; Threat Explainer
+                </h3>
+                <span class="chat-subtitle">Ask questions regarding this scan's findings</span>
+              </div>
+
+              <div class="intel-chat-log" id="intelChatLog">
+                <div class="chat-welcome">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="chat-welcome-icon"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                  Ask any question about breaches, GitHub secret exposures, ransomware risk, or mitigation protocols.
+                </div>
+              </div>
+
+              <div class="intel-chat-row">
+                <input type="text" id="intelChatInput" class="intel-chat-input" placeholder="e.g. What is the impact of the exposed GitHub secrets?" autocomplete="off">
+                <button class="btn-primary btn-chat" id="intelChatBtn">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                  Send Query
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 6. ACCOUNTS & HISTORY PANEL (TWO-PANE LAYOUT) -->
+        <div class="panel" id="panel-history">
+          <div class="history-layout-two-pane">
+
+            <!-- LEFT PANE: CASE LIST & FILTERS -->
+            <div class="history-left-pane">
+              <div class="history-toolbar">
+                <div class="history-title-row">
+                  <h3>INVESTIGATION CASE DOSSIER</h3>
+                  <span class="history-count-badge" id="historyCount">0 CASES</span>
+                </div>
+
+                <div class="history-filters" id="historyFilters">
+                  <button class="chip-filter active" data-filter="all">All</button>
+                  <button class="chip-filter" data-filter="image">Image</button>
+                  <button class="chip-filter" data-filter="video">Video</button>
+                  <button class="chip-filter" data-filter="audio">Voice</button>
+                  <button class="chip-filter" data-filter="intel">Intel</button>
+                </div>
+              </div>
+
+              <div class="history-list" id="historyList">
+                <div class="history-empty" id="historyEmpty">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="empty-icon"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                  <p>No historical cases found. Run an examination or threat scan to populate history.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- RIGHT PANE: CASE DETAIL VIEWER -->
+            <div class="history-right-pane">
+              <div class="case-detail-placeholder" id="historyDetailPlaceholder">
+                <div class="placeholder-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+                </div>
+                <h3>Select a Case File</h3>
+                <p>Click any investigation record on the left to inspect detailed forensic signal extractions or exposure findings.</p>
+              </div>
+
+              <div class="case-detail-view" id="historyDetailView" hidden>
+                <!-- Dynamically injected case detail content -->
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </section>
+
+      <!-- RESULTS PANEL (FOR MEDIA ANALYSIS) -->
+      <section class="results-section" id="results" hidden>
+        <div class="results-header">
+          <div class="results-title-group">
+            <h2>FORENSIC EXAMINATION REPORT</h2>
+            <span class="results-meta" id="resultsMeta">IMAGE FORENSICS &bull; 142ms</span>
+          </div>
+          <button class="btn-secondary" id="btnExportReport">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon-sm"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export Report
+          </button>
+        </div>
+
+        <div class="results-grid">
+
+          <!-- Verdict & Confidence Gauge Card -->
+          <div class="verdict-card">
+            <div class="gauge-wrap">
+              <svg viewBox="0 0 200 120" class="gauge-svg">
+                <path class="gauge-track" d="M 20 110 A 80 80 0 0 1 180 110" />
+                <g class="gauge-ticks" id="gaugeTicks"></g>
+                <path class="gauge-fill" id="gaugeFill" d="M 20 110 A 80 80 0 0 1 180 110" />
+              </svg>
+              <div class="gauge-value">
+                <span id="gaugeNumber">--</span><span class="gauge-pct">%</span>
+                <span class="gauge-label">MANIPULATION CONFIDENCE</span>
+              </div>
+            </div>
+
+            <div class="stamp-wrapper">
+              <div class="stamp" id="verdictLabel">AWAITING SUBMISSION</div>
+            </div>
+            <div class="verdict-desc" id="verdictDesc">Submit media evidence above to initiate signal decomposition.</div>
+          </div>
+
+          <!-- Signals Breakdown Grid Card -->
+          <div class="signals-card">
+            <div class="card-header-sm">
+              <h3>FORENSIC DETECTOR SIGNALS</h3>
+              <span class="signals-count" id="signalsCount">10 DETECTORS</span>
+            </div>
+            <div class="signal-bars" id="signalBars"></div>
+          </div>
+
+        </div>
+
+        <!-- Frame-by-Frame Confidence Timeline (For Video / Audio) -->
+        <div class="timeline-card" id="timelineCard" hidden>
+          <div class="card-header-sm">
+            <h3>TEMPORAL OPTICAL FLOW &amp; FRAME CONFIDENCE TRAJECTORY</h3>
+            <span class="timeline-meta">TEMPORAL SCAN &bull; 65% THRESHOLD</span>
+          </div>
+          <svg viewBox="0 0 600 100" class="timeline-svg" id="timelineSvg"></svg>
+        </div>
+      </section>
+
+      <!-- FOOTER -->
+      <footer class="console-footer">
+        <div class="footer-stamp">METHODOLOGY AUDIT NOTE</div>
+        <p>
+          AP Console extracts signal heuristics (FFT artifacts, JPEG error-level analysis, sensor-noise consistency, facial blink rate, temporal optical flow, and pitch MFCC smoothings). Findings represent objective forensic signals. Threat Intel queries verified public APIs and OSINT databases.
+        </p>
+      </footer>
+
+    </main>
+
+  </div><!-- /app-shell -->
+
+  <script src="script.js"></script>
+</body>
+</html>
