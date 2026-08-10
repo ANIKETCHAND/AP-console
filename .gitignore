@@ -1,0 +1,22 @@
+# Virtual environment
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+
+# Database & SQLite
+backend/*.db
+backend/ap_console.db
+*.sqlite3
+
+# Environment & API Keys
+backend/.env
+.env
+.env.local
+
+# OS & IDE temp files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
