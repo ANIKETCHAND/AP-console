@@ -33,6 +33,7 @@ load_dotenv()
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 # ---- media forensics detectors ----
@@ -419,6 +420,10 @@ async def chat(req: ChatRequest):
 # Serve the frontend (static build) if present, so `uvicorn app:app`
 # alone is enough to demo the whole platform.
 # =====================================================================
-FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend")
+FRONTEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
 if os.path.isdir(FRONTEND_DIR):
+    @app.get("/")
+    async def serve_index():
+        return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
+
     app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
