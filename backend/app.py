@@ -420,10 +420,27 @@ async def chat(req: ChatRequest):
 # Serve the frontend (static build) if present, so `uvicorn app:app`
 # alone is enough to demo the whole platform.
 # =====================================================================
-FRONTEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
-if os.path.isdir(FRONTEND_DIR):
+possible_dirs = [
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend")),
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "frontend")),
+    os.path.abspath(os.path.join(os.getcwd(), "..", "frontend")),
+    os.path.abspath(os.path.join(os.getcwd(), "frontend")),
+    "/app/frontend"
+]
+
+FRONTEND_DIR = None
+for d in possible_dirs:
+    if os.path.isdir(d) and os.path.exists(os.path.join(d, "index.html")):
+        FRONTEND_DIR = d
+        break
+
+if FRONTEND_DIR:
     @app.get("/")
     async def serve_index():
         return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
 
     app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
+else:
+    @app.get("/")
+    async def fallback_index():
+        return {"status": "ok", "message": "AP Consoles Platform API Running."}
