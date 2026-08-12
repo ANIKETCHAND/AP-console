@@ -123,8 +123,8 @@ def frequency_artifact_score(img_bgr):
     """High-frequency energy ratio + spectral periodicity. Returns 0-100."""
     gray = _to_gray(img_bgr).astype(np.float32)
     gray = _resize(gray, (256, 256))
-    f = fftpack.fft2(gray)
-    fshift = fftpack.fftshift(f)
+    f = np.fft.fft2(gray)
+    fshift = np.fft.fftshift(f)
     magnitude = np.log1p(np.abs(fshift))
 
     h, w = magnitude.shape
