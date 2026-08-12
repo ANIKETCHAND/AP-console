@@ -7,3 +7,9 @@ sys.path.insert(0, base_dir)
 sys.path.insert(0, os.path.join(base_dir, "backend"))
 
 from backend.app import app
+
+try:
+    from mangum import Mangum
+    handler = Mangum(app)
+except Exception:
+    handler = app
