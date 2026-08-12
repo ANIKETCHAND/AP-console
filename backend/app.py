@@ -233,11 +233,9 @@ MAX_FILE_MB = 80
 
 
 def _verdict(confidence):
-    if confidence >= 38:
+    if confidence >= 35.0:
         return "likely_manipulated"
-    if confidence <= 25:
-        return "likely_authentic"
-    return "uncertain"
+    return "likely_authentic"
 
 
 def _save_temp(upload: UploadFile, allowed_exts):

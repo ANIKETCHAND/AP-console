@@ -139,10 +139,12 @@ def frequency_artifact_score(img_bgr):
     high_energy = magnitude[high_mask].mean()
     ratio = high_energy / (low_energy + 1e-6)
 
-    # Real camera photos: ratio typically ~0.25-0.45.
-    # GAN/diffusion output: unusually flat or spiky high-frequency band.
-    deviation = abs(ratio - 0.33)
-    score = np.clip(deviation * 220, 0, 100)
+    # Real camera photos: high-frequency ratio is typically <= 0.40.
+    # GAN / diffusion upsampling produces unnatural spiky high-frequency ratio (> 0.45).
+    if ratio > 0.45:
+        score = np.clip((ratio - 0.45) * 180, 0, 100)
+    else:
+        score = 0.0
 
     # Periodicity check: real sensor noise is close to isotropic; grid-like
     # upsampling artifacts show strong peaks at regular angles.
@@ -155,7 +157,7 @@ def frequency_artifact_score(img_bgr):
     bucket_vals = np.array(bucket_vals)
     periodicity = 0
     if bucket_vals.std() > 0:
-        periodicity = np.clip((bucket_vals.max() - bucket_vals.mean()) / (bucket_vals.std() + 1e-6) * 8, 0, 100)
+        periodicity = np.clip((bucket_vals.max() - bucket_vals.mean()) / (bucket_vals.std() + 1e-6) * 10 - 20, 0, 100)
 
     return float(np.clip(0.6 * score + 0.4 * periodicity, 0, 100))
 
