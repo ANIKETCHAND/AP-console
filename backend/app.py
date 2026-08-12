@@ -93,11 +93,13 @@ def _user_public(user: User) -> dict:
     return {"id": user.id, "email": user.email, "name": user.name, "picture": user.picture}
 
 
+DEFAULT_GOOGLE_CLIENT_ID = "687301933144-sg19vagv8e3g4bsdglsgpu0hglf5aqie.apps.googleusercontent.com"
+
 @app.get("/api/config")
 @app.get("/api/auth/config")
 def get_config():
     """Public config the frontend needs before it can render the login button."""
-    client_id = os.environ.get("GOOGLE_CLIENT_ID", "")
+    client_id = os.environ.get("GOOGLE_CLIENT_ID") or DEFAULT_GOOGLE_CLIENT_ID
     return {"enabled": bool(client_id), "google_client_id": client_id}
 
 
