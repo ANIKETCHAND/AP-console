@@ -29,6 +29,8 @@ production setting.
 """
 
 import io
+import numpy as np
+from PIL import Image
 
 try:
     import cv2
