@@ -5,6 +5,32 @@
 
 const API_BASE = ""; // Same-origin served by FastAPI backend
 
+async function safeFetchJson(url, options = {}) {
+  let res;
+  try {
+    res = await fetch(url, options);
+  } catch (err) {
+    throw new Error("Network connection error. Ensure the Python backend is running.");
+  }
+
+  const text = await res.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch (e) {
+    if (res.status === 404) {
+      throw new Error("Endpoint not found (404). Run locally on http://localhost:8000 for full Python backend.");
+    }
+    throw new Error(`Backend server error (HTTP ${res.status}). Please run app locally on http://localhost:8000.`);
+  }
+
+  if (!res.ok) {
+    throw new Error(data.detail || data.error || `Server error (HTTP ${res.status})`);
+  }
+
+  return data;
+}
+
 // Global State
 let currentCaseNumber = "";
 let lastScanResult = null;
@@ -21,7 +47,8 @@ const GUEST_MODE_KEY = "ap_console_guest";
 
 /* ---------------------------------------------------------------------
    1. INITIALIZATION & AUTHENTICATION MANAGEMENT
-   --------------------------------------------------------------------- */document.addEventListener("DOMContentLoaded", () => {
+   --------------------------------------------------------------------- */
+document.addEventListener("DOMContentLoaded", () => {
   generateCaseNumber();
   checkEngineHealth();
   initGaugeTicks();
@@ -1196,15 +1223,12 @@ async function runAnalysis(kind) {
   form.append("file", file);
 
   try {
-    const res = await fetch(`${API_BASE}/api/analyze/${kind}`, {
+    const data = await safeFetchJson(`${API_BASE}/api/analyze/${kind}`, {
       method: "POST",
       headers: authHeaders(),
       body: form,
       credentials: "include",
     });
-
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || "Forensic analysis failed.");
 
     if (statusEl) statusEl.textContent = `Completed in ${data.processing_ms}ms`;
     renderResults(data);
@@ -1505,15 +1529,12 @@ async function runThreatScan() {
   resultsEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
 
   try {
-    const res = await fetch(`${API_BASE}/api/scan`, {
+    const data = await safeFetchJson(`${API_BASE}/api/scan`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({ target }),
       credentials: "include",
     });
-
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || "Scan failed.");
 
     lastScanResult = data;
     renderIntelResults(data);
@@ -1613,15 +1634,13 @@ async function askIntelChat() {
   log.scrollTop = log.scrollHeight;
 
   try {
-    const res = await fetch(`${API_BASE}/api/chat`, {
+    const data = await safeFetchJson(`${API_BASE}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({ question, scan: lastScanResult }),
       credentials: "include",
     });
 
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || "Error getting answer.");
     aBubble.textContent = data.answer;
   } catch (err) {
     aBubble.textContent = `Error: ${err.message}`;
