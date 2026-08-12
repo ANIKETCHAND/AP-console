@@ -2,6 +2,7 @@ fastapi>=0.115.0
 uvicorn[standard]>=0.30.0
 mangum>=0.17.0
 python-multipart>=0.0.9
+requests>=2.31.0
 
 # Lightweight media forensics for Serverless (Image / Video / Audio)
 opencv-python-headless>=4.10.0
