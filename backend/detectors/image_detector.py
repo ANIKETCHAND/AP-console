@@ -30,13 +30,15 @@ production setting.
 
 import io
 
-import cv2
-import numpy as np
-from PIL import Image
-from scipy import fftpack
+try:
+    import cv2
+    HAS_CV2 = True
+except Exception:
+    cv2 = None
+    HAS_CV2 = False
 
 try:
-    if hasattr(cv2, "CascadeClassifier") and hasattr(cv2, "data") and hasattr(cv2.data, "haarcascades"):
+    if HAS_CV2 and hasattr(cv2, "CascadeClassifier") and hasattr(cv2, "data") and hasattr(cv2.data, "haarcascades"):
         FACE_CASCADE = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
         EYE_CASCADE = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_eye.xml")
     else:
@@ -48,7 +50,60 @@ except Exception:
 
 
 def _to_gray(img_bgr):
-    return cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
+    if HAS_CV2 and cv2 is not None:
+        try:
+            return cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
+        except Exception:
+            pass
+    if img_bgr.ndim == 2:
+        return img_bgr
+    return (img_bgr[:, :, 0] * 0.114 + img_bgr[:, :, 1] * 0.587 + img_bgr[:, :, 2] * 0.299).astype(np.uint8)
+
+
+def _resize(img, dsize):
+    if HAS_CV2 and cv2 is not None:
+        try:
+            return cv2.resize(img, dsize)
+        except Exception:
+            pass
+    try:
+        pil_img = Image.fromarray(img)
+        resized = pil_img.resize(dsize, Image.Resampling.BILINEAR)
+        return np.array(resized)
+    except Exception:
+        return img
+
+
+def _blur(gray):
+    if HAS_CV2 and cv2 is not None:
+        try:
+            return cv2.GaussianBlur(gray, (3, 3), 0)
+        except Exception:
+            pass
+    try:
+        from scipy.ndimage import gaussian_filter
+        return gaussian_filter(gray, sigma=1.0)
+    except Exception:
+        return gray
+
+
+def _recompress_jpeg(img_bgr, quality):
+    if HAS_CV2 and cv2 is not None:
+        try:
+            ok, encoded = cv2.imencode(".jpg", img_bgr, [cv2.IMWRITE_JPEG_QUALITY, quality])
+            if ok:
+                return cv2.imdecode(encoded, cv2.IMREAD_COLOR)
+        except Exception:
+            pass
+    try:
+        pil_img = Image.fromarray(img_bgr[:, :, ::-1])  # BGR to RGB
+        buf = io.BytesIO()
+        pil_img.save(buf, format="JPEG", quality=quality)
+        buf.seek(0)
+        re_pil = Image.open(buf).convert("RGB")
+        return np.array(re_pil)[:, :, ::-1]  # RGB to BGR
+    except Exception:
+        return None
 
 
 def detect_faces(img_bgr):
@@ -65,7 +120,7 @@ def detect_faces(img_bgr):
 def frequency_artifact_score(img_bgr):
     """High-frequency energy ratio + spectral periodicity. Returns 0-100."""
     gray = _to_gray(img_bgr).astype(np.float32)
-    gray = cv2.resize(gray, (256, 256))
+    gray = _resize(gray, (256, 256))
     f = fftpack.fft2(gray)
     fshift = fftpack.fftshift(f)
     magnitude = np.log1p(np.abs(fshift))
@@ -104,9 +159,6 @@ def frequency_artifact_score(img_bgr):
 
 
 def _estimate_jpeg_quality(raw_bytes):
-    """Recover the quality factor the file was ORIGINALLY saved at, by reading
-    its quantization tables. Returns None if this isn't a JPEG (PNG/BMP/WEBP
-    have no prior compression history for ELA to compare against)."""
     try:
         img = Image.open(io.BytesIO(raw_bytes))
         if img.format != "JPEG":
@@ -114,7 +166,6 @@ def _estimate_jpeg_quality(raw_bytes):
         qtables = img.quantization
         if not qtables:
             return None
-        # Standard IJG luminance quantization table (quality-50 baseline).
         std_luma = np.array([
             16, 11, 10, 16, 24, 40, 51, 61,
             12, 12, 14, 19, 26, 58, 60, 55,
@@ -139,30 +190,19 @@ def _estimate_jpeg_quality(raw_bytes):
 
 
 def error_level_analysis_score(img_bgr, raw_bytes=None):
-    """Re-JPEG-compress and diff. Returns 0-100, or None if this signal
-    isn't meaningful for the source format (see _estimate_jpeg_quality)."""
     source_quality = _estimate_jpeg_quality(raw_bytes) if raw_bytes else None
     if raw_bytes is not None and source_quality is None:
-        # Not a JPEG originally (PNG/BMP/WEBP) — there's no prior JPEG
-        # compression history to diff against. Forcing one through a JPEG
-        # encoder here would measure image content, not editing, and
-        # reliably false-flags genuine lossless-format photos.
         return None
 
-    # Recompress at the SAME quality the file was already saved at, not a
-    # fixed value. Diffing against a mismatched quality (e.g. always 90)
-    # flags ordinary recompression history from social apps/screenshots as
-    # if it were localized editing.
     quality = source_quality if source_quality is not None else 90
-    ok, encoded = cv2.imencode(".jpg", img_bgr, [cv2.IMWRITE_JPEG_QUALITY, quality])
-    if not ok:
+    recompressed = _recompress_jpeg(img_bgr, quality)
+    if recompressed is None:
         return 0.0
-    recompressed = cv2.imdecode(encoded, cv2.IMREAD_COLOR)
-    if recompressed is None or recompressed.shape != img_bgr.shape:
-        recompressed = cv2.resize(recompressed, (img_bgr.shape[1], img_bgr.shape[0]))
+    if recompressed.shape != img_bgr.shape:
+        recompressed = _resize(recompressed, (img_bgr.shape[1], img_bgr.shape[0]))
 
-    diff = cv2.absdiff(img_bgr, recompressed).astype(np.float32)
-    diff_gray = cv2.cvtColor(diff.astype(np.uint8), cv2.COLOR_BGR2GRAY).astype(np.float32)
+    diff = np.abs(img_bgr.astype(np.float32) - recompressed.astype(np.float32))
+    diff_gray = _to_gray(diff.astype(np.uint8)).astype(np.float32)
 
     h, w = diff_gray.shape
     block = 16
@@ -172,16 +212,6 @@ def error_level_analysis_score(img_bgr, raw_bytes=None):
             block_means.append(diff_gray[by:by + block, bx:bx + block].mean())
     block_means = np.array(block_means) if block_means else np.array([0.0])
 
-    # High variance across blocks = some regions compressed differently
-    # from the rest = signature of localized editing/splicing.
-    #
-    # NOTE: when recompression quality matches the source well (the
-    # expected case for a genuine, unedited photo), the diff is tiny
-    # (mean diff often < 1 out of 255). Dividing std by that near-zero
-    # mean blows the ratio up toward infinity — a PERFECT match then
-    # scores as maximally suspicious, which is backwards. A noise floor
-    # on the denominator prevents that: below it we're just measuring
-    # encoder rounding, not a meaningful signal.
     noise_floor = 1.5
     global_mean = max(block_means.mean(), noise_floor)
     cv = block_means.std() / global_mean
@@ -192,7 +222,7 @@ def error_level_analysis_score(img_bgr, raw_bytes=None):
 def noise_inconsistency_score(img_bgr):
     """Block-wise local noise variance uniformity. Returns 0-100."""
     gray = _to_gray(img_bgr).astype(np.float32)
-    denoised = cv2.GaussianBlur(gray, (3, 3), 0)
+    denoised = _blur(gray)
     residual = gray - denoised
 
     h, w = residual.shape
@@ -205,12 +235,6 @@ def noise_inconsistency_score(img_bgr):
 
     mean_v = variances.mean() + 1e-6
     cv = variances.std() / mean_v
-    # Real camera photos routinely have cv in the 0.4-1.2 range due to
-    # natural contrast variation (sky vs. skin vs. fabric etc.). The old
-    # threshold of 0.4 fired on virtually every genuine photo.
-    # Raise the dead-band to 1.2 and use a gentler slope so that only
-    # images with strongly non-uniform noise (spliced/blended regions)
-    # produce a meaningful score.
     score = np.clip((cv - 1.2) * 25, 0, 100)
     return float(score)
 
@@ -221,16 +245,13 @@ def facial_symmetry_score(img_bgr, face_box):
     face = img_bgr[y:y + h, x:x + w]
     if face.size == 0:
         return 0.0
-    face = cv2.resize(face, (200, 200))
+    face = _resize(face, (200, 200))
     gray = _to_gray(face).astype(np.float32)
     left = gray[:, :100]
-    right = cv2.flip(gray[:, 100:], 1)
+    right = np.fliplr(gray[:, 100:])
 
     diff = np.abs(left - right)
     asymmetry = diff.mean()
-    # natural faces have some asymmetry; extreme LOW asymmetry can indicate
-    # a GAN-averaged/synthetic face, extreme HIGH can indicate warping/blend
-    # artifacts from face-swap. Score deviation from the natural band.
     natural_low, natural_high = 8, 22
     if asymmetry < natural_low:
         dev = (natural_low - asymmetry) / natural_low

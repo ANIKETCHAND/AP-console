@@ -25,7 +25,16 @@ import datetime
 import asyncio
 from typing import Optional
 
-import cv2
+try:
+    import cv2
+    HAS_CV2 = True
+except Exception:
+    cv2 = None
+    HAS_CV2 = False
+
+import io
+import numpy as np
+from PIL import Image
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -255,11 +264,23 @@ async def analyze_image_endpoint(file: UploadFile = File(...), user: Optional[Us
     tmp_path = _save_temp(file, IMAGE_EXTS)
     try:
         start = time.time()
-        img = cv2.imread(tmp_path)
-        if img is None:
-            raise HTTPException(400, "Could not decode image file.")
         with open(tmp_path, "rb") as f:
             raw_bytes = f.read()
+
+        img = None
+        if HAS_CV2 and cv2 is not None:
+            try:
+                img = cv2.imread(tmp_path)
+            except Exception:
+                img = None
+
+        if img is None:
+            try:
+                pil_img = Image.open(io.BytesIO(raw_bytes)).convert("RGB")
+                img = np.array(pil_img)[:, :, ::-1]  # RGB to BGR
+            except Exception:
+                raise HTTPException(400, "Could not decode image file.")
+
         result = analyze_image(img, raw_bytes=raw_bytes)
         result["verdict"] = _verdict(result["manipulation_confidence"])
         result["processing_ms"] = round((time.time() - start) * 1000, 1)
@@ -267,7 +288,8 @@ async def analyze_image_endpoint(file: UploadFile = File(...), user: Optional[Us
         _save_case(user, "image", file.filename, result["verdict"], result["manipulation_confidence"], result)
         return result
     finally:
-        os.remove(tmp_path)
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
 
 @app.post("/api/analyze/video")
