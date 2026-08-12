@@ -536,17 +536,9 @@ async function checkEngineHealth() {
 // Auth Initialization
 async function initAuth() {
   const loginGate = document.getElementById("loginGate");
-  const guestBtn = document.getElementById("guestContinueBtn");
   const navSignInBtn = document.getElementById("navSignInBtn");
   const logoutBtn = document.getElementById("logoutBtn");
   const userInfoWrap = document.getElementById("userInfoWrap");
-
-  // Guest Continue Action
-  guestBtn.addEventListener("click", () => {
-    localStorage.setItem(GUEST_MODE_KEY, "true");
-    loginGate.style.display = "none";
-    updateAuthUI(null);
-  });
 
   // Nav Sign In Action
   navSignInBtn.addEventListener("click", () => {
@@ -575,9 +567,9 @@ async function initAuth() {
       logout();
     }
   } else {
-    // Default to Guest Mode so user immediately enters console without modal popup
-    localStorage.setItem(GUEST_MODE_KEY, "true");
-    loginGate.style.display = "none";
+    // Require Google Login before using the console
+    localStorage.removeItem(GUEST_MODE_KEY);
+    loginGate.style.display = "flex";
     updateAuthUI(null);
   }
 
@@ -591,7 +583,7 @@ async function initAuth() {
       const hint = document.getElementById("loginHint");
       if (hint) {
         hint.style.color = "var(--color-manipulated)";
-        hint.textContent = "Google Sign-In isn't configured on the server yet (missing GOOGLE_CLIENT_ID). Continue as guest below.";
+        hint.textContent = "Google Sign-In isn't configured on the server yet.";
       }
     }
   } catch (err) {
@@ -599,7 +591,7 @@ async function initAuth() {
     const hint = document.getElementById("loginHint");
     if (hint) {
       hint.style.color = "var(--color-manipulated)";
-      hint.textContent = "Couldn't reach the server to load sign-in settings. Check your connection and refresh, or continue as guest below.";
+      hint.textContent = "Couldn't reach the server to load sign-in settings. Please refresh.";
     }
   }
 }
@@ -640,7 +632,7 @@ function setupGoogleSignIn(clientId, attempt = 0) {
       "Google Sign-In didn't load. This is almost always an ad blocker or " +
       "privacy extension blocking accounts.google.com, a blocked/offline network, " +
       "or this URL not being added to the OAuth client's \"Authorized JavaScript " +
-      "origins\" in Google Cloud Console. You can continue as guest below in the meantime.";
+      "origins\" in Google Cloud Console. Please check settings and refresh.";
   }
 }
 
