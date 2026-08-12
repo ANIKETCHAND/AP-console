@@ -14,24 +14,32 @@ import tempfile
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.pool import StaticPool
 
-# Fall back to system /tmp directory if backend folder is read-only (Vercel Serverless)
-_db_dir = os.path.dirname(__file__)
-try:
-    _test_path = os.path.join(_db_dir, ".write_test")
-    with open(_test_path, "w") as f:
-        f.write("1")
-    os.remove(_test_path)
-except Exception:
-    _db_dir = tempfile.gettempdir()
+IS_VERCEL = bool(os.environ.get("VERCEL"))
 
-DB_PATH = os.path.join(_db_dir, "ap_console.db")
-DATABASE_URL = os.environ.get("DATABASE_URL", f"sqlite:///{DB_PATH}")
+if IS_VERCEL:
+    DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///:memory:")
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool if DATABASE_URL.startswith("sqlite") else None
+    )
+else:
+    _db_dir = os.path.dirname(__file__)
+    try:
+        _test_path = os.path.join(_db_dir, ".write_test")
+        with open(_test_path, "w") as f:
+            f.write("1")
+        os.remove(_test_path)
+    except Exception:
+        _db_dir = tempfile.gettempdir()
 
-# SQLite needs this flag when accessed from multiple request threads.
-_connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+    DB_PATH = os.path.abspath(os.path.join(_db_dir, "ap_console.db"))
+    DATABASE_URL = os.environ.get("DATABASE_URL", f"sqlite:///{DB_PATH}")
+    _connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+    engine = create_engine(DATABASE_URL, connect_args=_connect_args)
 
-engine = create_engine(DATABASE_URL, connect_args=_connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
