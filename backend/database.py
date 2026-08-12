@@ -10,11 +10,22 @@ Postgres/MySQL URL instead if you want a shared server-side database.
 """
 
 import os
+import tempfile
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "ap_console.db")
+# Fall back to system /tmp directory if backend folder is read-only (Vercel Serverless)
+_db_dir = os.path.dirname(__file__)
+try:
+    _test_path = os.path.join(_db_dir, ".write_test")
+    with open(_test_path, "w") as f:
+        f.write("1")
+    os.remove(_test_path)
+except Exception:
+    _db_dir = tempfile.gettempdir()
+
+DB_PATH = os.path.join(_db_dir, "ap_console.db")
 DATABASE_URL = os.environ.get("DATABASE_URL", f"sqlite:///{DB_PATH}")
 
 # SQLite needs this flag when accessed from multiple request threads.
