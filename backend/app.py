@@ -456,7 +456,7 @@ for d in possible_dirs:
         FRONTEND_DIR = d
         break
 
-if FRONTEND_DIR:
+if FRONTEND_DIR and not os.environ.get("VERCEL"):
     @app.get("/")
     async def serve_index():
         return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
