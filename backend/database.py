@@ -9,7 +9,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.pool import StaticPool
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///:memory:")
+raw_db_url = os.environ.get("DATABASE_URL", "").strip()
+if not raw_db_url or "ap_console.db" in raw_db_url or (raw_db_url.startswith("sqlite") and ":memory:" not in raw_db_url and not os.access(os.path.dirname(__file__), os.W_OK)):
+    DATABASE_URL = "sqlite:///:memory:"
+else:
+    DATABASE_URL = raw_db_url
 
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 pool_kwargs = {"poolclass": StaticPool} if DATABASE_URL == "sqlite:///:memory:" else {}
