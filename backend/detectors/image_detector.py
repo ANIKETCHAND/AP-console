@@ -155,9 +155,11 @@ def frequency_artifact_score(img_bgr):
                    if np.any(ring & (np.abs(angle_map - a) < 0.09)) else 0
                    for a in angles]
     bucket_vals = np.array(bucket_vals)
-    periodicity = 0
-    if bucket_vals.std() > 0:
-        periodicity = np.clip((bucket_vals.max() - bucket_vals.mean()) / (bucket_vals.std() + 1e-6) * 10 - 20, 0, 100)
+    periodicity = 0.0
+    if bucket_vals.std() > 1e-5:
+        z_max = (bucket_vals.max() - bucket_vals.mean()) / bucket_vals.std()
+        if z_max > 4.5:
+            periodicity = float(np.clip((z_max - 4.5) * 30, 0, 100))
 
     return float(np.clip(0.6 * score + 0.4 * periodicity, 0, 100))
 
@@ -219,7 +221,7 @@ def error_level_analysis_score(img_bgr, raw_bytes=None):
     noise_floor = 1.5
     global_mean = max(block_means.mean(), noise_floor)
     cv = block_means.std() / global_mean
-    score = np.clip(cv * 35, 0, 100)
+    score = np.clip((cv - 0.45) * 45, 0, 100) if cv > 0.45 else 0.0
     return float(score)
 
 
@@ -283,11 +285,12 @@ def analyze_image(img_bgr, raw_bytes=None):
         total += weights["ela"] * ela
         total_weight += weights["ela"]
 
-    if symmetry is not None:
-        total += weights["symmetry"] * symmetry
-        total_weight += weights["symmetry"]
+    weighted_avg = total / total_weight
+    valid_signals = [s for s in [freq, ela, noise, symmetry] if s is not None]
+    max_signal = max(valid_signals) if valid_signals else 0.0
 
-    confidence = float(np.clip(total / total_weight, 0, 100))
+    # Combine weighted average with peak signal indicator so single high-conviction anomalies trigger detection
+    confidence = float(np.clip(0.60 * weighted_avg + 0.40 * max_signal, 0, 100))
 
     return {
         "manipulation_confidence": round(confidence, 1),
