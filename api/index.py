@@ -10,3 +10,9 @@ if base_dir not in sys.path:
     sys.path.insert(0, base_dir)
 
 from app import app
+
+try:
+    from mangum import Mangum
+    handler = Mangum(app)
+except Exception:
+    handler = app
