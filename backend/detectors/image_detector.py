@@ -139,10 +139,10 @@ def frequency_artifact_score(img_bgr):
     high_energy = magnitude[high_mask].mean()
     ratio = high_energy / (low_energy + 1e-6)
 
-    # Real camera photos: high-frequency ratio is typically <= 0.40.
-    # GAN / diffusion upsampling produces unnatural spiky high-frequency ratio (> 0.48).
-    if ratio > 0.48:
-        score = np.clip((ratio - 0.48) * 150, 0, 100)
+    # Real camera photos: high-frequency ratio is typically <= 0.38.
+    # GAN / diffusion upsampling produces unnatural spiky high-frequency ratio (> 0.40).
+    if ratio > 0.40:
+        score = np.clip((ratio - 0.40) * 180, 0, 100)
     else:
         score = 0.0
 
@@ -158,8 +158,8 @@ def frequency_artifact_score(img_bgr):
     periodicity = 0.0
     if bucket_vals.std() > 1e-5:
         z_max = (bucket_vals.max() - bucket_vals.mean()) / bucket_vals.std()
-        if z_max > 5.0:
-            periodicity = float(np.clip((z_max - 5.0) * 25, 0, 100))
+        if z_max > 3.6:
+            periodicity = float(np.clip((z_max - 3.6) * 35, 0, 100))
 
     return float(np.clip(0.6 * score + 0.4 * periodicity, 0, 100))
 
@@ -268,27 +268,6 @@ def facial_symmetry_score(img_bgr, face_box):
     return float(np.clip(dev * 80, 0, 100))
 
 
-def _detect_filename_cues(filename):
-    if not filename:
-        return None
-    fn = str(filename).lower()
-    fake_keywords = [
-        "fake", "deepfake", "ai_", "_ai", "synth", "cloned", "faceswap", "face_swap",
-        "midjourney", "dalle", "dall-e", "runway", "sora", "pika", "kling", "luma",
-        "flux", "stable_diffusion", "stablediffusion", "gen_", "generated", "v6",
-        "wav2lip", "roop", "reactor", "deepfacelab"
-    ]
-    real_keywords = [
-        "real", "authentic", "camera", "original", "raw", "gopro", "iphone",
-        "img_", "dsc_", "pxl_", "dji_", "photo_"
-    ]
-    if any(k in fn for k in fake_keywords):
-        return "fake"
-    if any(k in fn for k in real_keywords):
-        return "real"
-    return None
-
-
 def analyze_image(img_bgr, raw_bytes=None, filename=None):
     faces = detect_faces(img_bgr)
     freq = frequency_artifact_score(img_bgr)
@@ -306,23 +285,19 @@ def analyze_image(img_bgr, raw_bytes=None, filename=None):
         total += weights["ela"] * ela
         total_weight += weights["ela"]
 
+    if symmetry is not None:
+        total += weights["symmetry"] * symmetry
+        total_weight += weights["symmetry"]
+
     weighted_avg = total / total_weight
     valid_signals = [s for s in [freq, ela, noise, symmetry] if s is not None]
     max_signal = max(valid_signals) if valid_signals else 0.0
 
-    # High-conviction anomaly peak scaling: if any single signal exceeds 50%, anchor confidence to peak anomaly
-    if max_signal >= 50.0:
-        confidence = float(np.clip(max(weighted_avg, 0.75 * max_signal), 0, 100))
-    elif max_signal >= 38.0:
-        confidence = float(np.clip(max(weighted_avg * 1.25, 42.0), 0, 100))
+    # High-conviction anomaly scaling: only scale confidence if an individual signal shows severe manipulation (> 55%)
+    if max_signal >= 55.0:
+        confidence = float(np.clip(0.50 * weighted_avg + 0.50 * max_signal, 0, 100))
     else:
         confidence = float(np.clip(weighted_avg, 0, 100))
-
-    cue = _detect_filename_cues(filename)
-    if cue == "fake":
-        confidence = float(np.clip(max(confidence, 78.5), 0, 100))
-    elif cue == "real":
-        confidence = float(np.clip(min(confidence, 22.0), 0, 100))
 
     return {
         "manipulation_confidence": round(confidence, 1),

@@ -233,7 +233,7 @@ MAX_FILE_MB = 80
 
 
 def _verdict(confidence):
-    if confidence >= 35.0:
+    if confidence >= 48.0:
         return "likely_manipulated"
     return "likely_authentic"
 

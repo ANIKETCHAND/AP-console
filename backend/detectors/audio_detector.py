@@ -240,19 +240,12 @@ def analyze_audio(path, filename=None):
     )
 
     max_signal = max(pitch, flatness, mfcc_var, rolloff, zcr)
-    if max_signal >= 35.0:
-        total = float(np.clip(max(weighted_avg * 1.25, max_signal * 1.10, 42.0), 0, 100))
+    if max_signal >= 50.0:
+        total = float(np.clip(0.50 * weighted_avg + 0.50 * max_signal, 0, 100))
     else:
         total = float(np.clip(weighted_avg, 0, 100))
 
-    from .image_detector import _detect_filename_cues
-    cue = _detect_filename_cues(filename)
-    if cue == "fake":
-        total = float(np.clip(max(total, 85.0), 0, 100))
-    elif cue == "real":
-        total = float(np.clip(min(total, 20.0), 0, 100))
-
-    if total >= 35.0:
+    if total >= 48.0:
         verdict_label = "SYNTHETIC / AI-GENERATED"
     else:
         verdict_label = "AUTHENTIC — NO MANIPULATION DETECTED"

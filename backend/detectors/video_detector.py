@@ -157,7 +157,7 @@ def analyze_video(path, filename=None):
     if not frames:
         return {"error": "Could not read any frames from this video."}
 
-    per_frame_results = [analyze_image(f, filename=filename) for f in frames]
+    per_frame_results = [analyze_image(f) for f in frames]
     frame_confidences = [r["manipulation_confidence"] for r in per_frame_results]
 
     blink_score, blinks_per_min = blink_rate_score(frames, fps)
@@ -177,19 +177,10 @@ def analyze_video(path, filename=None):
 
     peak_signal = max(all_signals)
 
-    # High-conviction anomaly aggregation: if any frame or temporal metric reaches 28%+,
-    # scale overall confidence into deepfake territory (42%-95%), preventing false authentic verdicts.
-    if peak_signal >= 28.0:
-        total = float(np.clip(max(top_3_mean * 1.25, peak_signal * 1.15, 42.0), 0, 100))
+    if peak_signal >= 45.0:
+        total = float(np.clip(max(top_3_mean * 1.10, peak_signal * 1.05), 0, 100))
     else:
         total = top_3_mean
-
-    from .image_detector import _detect_filename_cues
-    cue = _detect_filename_cues(filename)
-    if cue == "fake":
-        total = float(np.clip(max(total, 82.0), 0, 100))
-    elif cue == "real":
-        total = float(np.clip(min(total, 22.0), 0, 100))
 
     return {
         "manipulation_confidence": round(float(np.clip(total, 0, 100)), 1),
