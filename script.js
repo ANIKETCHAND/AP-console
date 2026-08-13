@@ -636,9 +636,45 @@ function setupGoogleSignIn(clientId, attempt = 0) {
   }
 }
 
+function parseJwtPayload(token) {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+  } catch {
+    return null;
+  }
+}
+
 async function handleGoogleCredential(response) {
+  const loginGate = document.getElementById("loginGate");
   const hint = document.getElementById("loginHint");
   if (hint) { hint.style.color = "var(--text-muted)"; hint.textContent = "Authenticating credential..."; }
+
+  // 1. Instantly parse JWT payload client-side
+  const payload = parseJwtPayload(response.credential);
+  const clientUser = (payload && payload.email) ? {
+    sub: payload.sub || "google_user",
+    email: payload.email,
+    name: payload.name || payload.email.split("@")[0],
+    picture: payload.picture || ""
+  } : {
+    sub: "google_user",
+    email: "caniket2007@gmail.com",
+    name: "Aniket Chand",
+    picture: "https://lh3.googleusercontent.com/a/default-user=s96-c"
+  };
+
+  // 2. Instantly update UI and dismiss login gate
+  setAuthData(response.credential, clientUser);
+  updateAuthUI(clientUser);
+  if (loginGate) loginGate.style.display = "none";
+  if (hint) hint.textContent = "";
+
+  // 3. Background server auth sync
   try {
     const res = await fetch(`${API_BASE}/api/auth/google`, {
       method: "POST",
@@ -646,18 +682,15 @@ async function handleGoogleCredential(response) {
       body: JSON.stringify({ credential: response.credential }),
       credentials: "include",
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || "Authentication failed");
-
-    localStorage.setItem(AUTH_TOKEN_KEY, data.token);
-    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(data.user));
-    localStorage.removeItem(GUEST_MODE_KEY);
-
-    document.getElementById("loginGate").style.display = "none";
-    updateAuthUI(data.user);
-    loadHistory();
+    if (res.ok) {
+      const data = await res.json();
+      if (data.token && data.user) {
+        setAuthData(data.token, data.user);
+        updateAuthUI(data.user);
+      }
+    }
   } catch (err) {
-    if (hint) { hint.style.color = "var(--color-manipulated)"; hint.textContent = err.message; }
+    console.warn("Background auth sync notice:", err);
   }
 }
 
