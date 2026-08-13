@@ -1,22 +1,10 @@
 fastapi>=0.115.0
-uvicorn[standard]>=0.30.0
-mangum>=0.17.0
+uvicorn>=0.30.0
 python-multipart>=0.0.9
 requests>=2.31.0
-
-# Lightweight media forensics for Serverless (Image / Video / Audio)
-opencv-python-headless>=4.10.0
+httpx>=0.27.0
 Pillow>=10.4.0
 numpy>=1.26.0,<2.0.0
-scipy>=1.12.0
-
-# threat-intel watchdog (breach / phishing / secrets / infra checkers)
-httpx>=0.27.0
 python-dotenv>=1.0.0
 pydantic>=2.9.0
-openai>=1.51.0
-
-# login (Google Sign-In) + case-history database
-SQLAlchemy>=2.0.0
-google-auth>=2.35.0
 PyJWT>=2.9.0
