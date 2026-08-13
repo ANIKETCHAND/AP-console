@@ -577,9 +577,8 @@ async function initAuth() {
     if (loginGate) loginGate.style.display = "none";
     updateAuthUI(user);
   } else {
-    // Show login modal if not logged in
-    localStorage.removeItem(GUEST_MODE_KEY);
-    if (loginGate) loginGate.style.display = "flex";
+    // Keep modal hidden by default so user can access console instantly
+    if (loginGate) loginGate.style.display = "none";
     updateAuthUI(null);
   }
 

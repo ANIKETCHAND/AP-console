@@ -22,8 +22,8 @@
   <div class="cyber-grid" aria-hidden="true"></div>
   <canvas id="cyber3DCanvas" aria-hidden="true"></canvas>
 
-  <!-- AUTH / SIGN-IN GATE MODAL -->
-  <div class="auth-overlay" id="loginGate">
+  <!-- AUTH / SIGN-IN GATE MODAL (HIDDEN BY DEFAULT TO PREVENT BLOCKING) -->
+  <div class="auth-overlay" id="loginGate" style="display: none;">
     <div class="auth-card" style="position:relative;">
       <button class="modal-close-btn" onclick="document.getElementById('loginGate').style.display='none'" style="position:absolute; top:16px; right:16px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:#fff; border-radius:50%; width:32px; height:32px; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center;">✕</button>
       <div class="auth-header">
@@ -528,6 +528,6 @@
 
   </div><!-- /app-shell -->
 
-  <script src="script.js?v=20260813_v5"></script>
+  <script src="script.js?v=20260813_v7"></script>
 </body>
 </html>

@@ -558,8 +558,7 @@ async function initAuth() {
     if (loginGate) loginGate.style.display = "none";
     updateAuthUI(user);
   } else {
-    // Default to Guest Mode so user immediately enters console without modal popup
-    localStorage.setItem(GUEST_MODE_KEY, "true");
+    // Keep modal hidden by default so user can access console instantly
     if (loginGate) loginGate.style.display = "none";
     updateAuthUI(null);
   }
