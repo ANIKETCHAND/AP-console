@@ -289,9 +289,9 @@ def analyze_image(img_bgr, raw_bytes=None):
     valid_signals = [s for s in [freq, ela, noise, symmetry] if s is not None]
     max_signal = max(valid_signals) if valid_signals else 0.0
 
-    # If any single signal exceeds 50%, apply a peak anomaly boost; otherwise use weighted average
-    if max_signal > 50.0:
-        confidence = float(np.clip(0.60 * weighted_avg + 0.40 * max_signal, 0, 100))
+    # High-conviction anomaly peak scaling: if any single signal exceeds 50%, anchor confidence to peak anomaly
+    if max_signal >= 50.0:
+        confidence = float(np.clip(max(weighted_avg, 0.75 * max_signal), 0, 100))
     else:
         confidence = float(np.clip(weighted_avg, 0, 100))
 

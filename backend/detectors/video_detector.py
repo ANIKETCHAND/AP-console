@@ -152,51 +152,27 @@ def analyze_video(path):
     blink_score, blinks_per_min = blink_rate_score(frames, fps)
     temporal_score = temporal_consistency_score(frames)
 
-    # Use the 75th-percentile frame confidence instead of the mean so that a
-    # handful of heavily-manipulated frames are not drowned out by clean ones.
     sorted_fc = sorted(frame_confidences)
     p75_frame_conf = float(np.percentile(sorted_fc, 75)) if sorted_fc else 0.0
     avg_frame_conf = float(np.mean(frame_confidences))
 
-    # Check if any faces were detected across frames — needed for signal weighting.
-    faces_in_frames = sum(r.get("faces_detected", 0) for r in per_frame_results)
-    has_faces = faces_in_frames > 0
+    # Real authentic video: p75_frame_conf is typically 15 - 28%.
+    # Deepfake video: p75_frame_conf is typically >= 35%, or blink/temporal scores spike > 45%.
+    valid_signals = [p75_frame_conf]
+    if blink_score > 0:
+        valid_signals.append(blink_score)
+    if temporal_score > 0:
+        valid_signals.append(temporal_score)
 
-    # Give frame-level signals more weight; blink/temporal often score 0 when
-    # the cascade can't locate faces (common for compressed downloaded video).
-    weights = {"frames": 0.55, "blink": 0.25, "temporal": 0.20}
-    weighted_avg = (weights["frames"] * p75_frame_conf +
-                    weights["blink"] * blink_score +
-                    weights["temporal"] * temporal_score)
+    weighted_avg = p75_frame_conf
+    if len(valid_signals) > 1:
+        weighted_avg = float(np.mean(valid_signals))
 
-    # Floor: the strongest single signal directly anchors the overall score.
-    strongest_signal = max(p75_frame_conf, blink_score, temporal_score)
-    floor = strongest_signal  # no haircut — a real signal sets the minimum
-
-    # Boost logic — triggers are intentionally low because modern deepfakes
-    # are designed to pass classical forensics and will rarely score above 40%
-    # on pure heuristics; even a modest elevation across frames is meaningful.
-    #
-    # Additionally: if we detected faces in frames but blink/temporal both
-    # read 0, that means the face-region temporal checks silently failed —
-    # which itself is suspicious (real people blink, real video has jitter).
-    face_cascade_silent = has_faces and blink_score == 0 and temporal_score == 0
-    elevated_signals = sum([
-        p75_frame_conf > 25,   # lowered from 35 — modern deepfakes hover ~30-35%
-        blink_score > 25,
-        temporal_score > 25,
-        face_cascade_silent,   # cascades detected faces but gave no temporal signal
-    ])
-    if elevated_signals >= 3:
-        boost = 22.0
-    elif elevated_signals == 2:
-        boost = 15.0
-    elif elevated_signals == 1:
-        boost = 10.0
+    max_sig = max(valid_signals)
+    if max_sig >= 45.0:
+        total = 0.5 * weighted_avg + 0.5 * max_sig
     else:
-        boost = 0.0
-
-    total = max(weighted_avg, floor) + boost
+        total = weighted_avg
 
     return {
         "manipulation_confidence": round(float(np.clip(total, 0, 100)), 1),
