@@ -11,12 +11,17 @@ import json
 from dotenv import load_dotenv
 load_dotenv()
 
-from openai import AsyncOpenAI
+try:
+    from openai import AsyncOpenAI
+    HAS_OPENAI = True
+except ImportError:
+    AsyncOpenAI = None
+    HAS_OPENAI = False
 
 # ── Groq (primary — free, fast Llama 3.3 70B) ───────────────────────────────
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
 _groq = None
-if GROQ_API_KEY:
+if HAS_OPENAI and GROQ_API_KEY:
     _groq = AsyncOpenAI(
         api_key=GROQ_API_KEY,
         base_url="https://api.groq.com/openai/v1",
@@ -25,7 +30,7 @@ if GROQ_API_KEY:
 # ── OpenAI (fallback) ────────────────────────────────────────────────────────
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
 _openai = None
-if OPENAI_API_KEY:
+if HAS_OPENAI and OPENAI_API_KEY:
     _openai = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 
