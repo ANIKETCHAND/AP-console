@@ -5,6 +5,32 @@
 
 const API_BASE = ""; // Same-origin served by FastAPI backend
 
+async function safeFetchJson(url, options = {}) {
+  let res;
+  try {
+    res = await fetch(url, options);
+  } catch (err) {
+    throw new Error("Network connection error. Ensure the Python backend is running.");
+  }
+
+  const text = await res.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch (e) {
+    if (res.status === 404) {
+      throw new Error("Endpoint not found (404). Run locally on http://localhost:8000 for full Python backend.");
+    }
+    throw new Error(`Backend server error (HTTP ${res.status}). Please run app locally on http://localhost:8000.`);
+  }
+
+  if (!res.ok) {
+    throw new Error(data.detail || data.error || `Server error (HTTP ${res.status})`);
+  }
+
+  return data;
+}
+
 // Global State
 let currentCaseNumber = "";
 let lastScanResult = null;
@@ -21,7 +47,8 @@ const GUEST_MODE_KEY = "ap_console_guest";
 
 /* ---------------------------------------------------------------------
    1. INITIALIZATION & AUTHENTICATION MANAGEMENT
-   --------------------------------------------------------------------- */document.addEventListener("DOMContentLoaded", () => {
+   --------------------------------------------------------------------- */
+document.addEventListener("DOMContentLoaded", () => {
   generateCaseNumber();
   checkEngineHealth();
   initGaugeTicks();
@@ -509,17 +536,9 @@ async function checkEngineHealth() {
 // Auth Initialization
 async function initAuth() {
   const loginGate = document.getElementById("loginGate");
-  const guestBtn = document.getElementById("guestContinueBtn");
   const navSignInBtn = document.getElementById("navSignInBtn");
   const logoutBtn = document.getElementById("logoutBtn");
   const userInfoWrap = document.getElementById("userInfoWrap");
-
-  // Guest Continue Action
-  guestBtn.addEventListener("click", () => {
-    localStorage.setItem(GUEST_MODE_KEY, "true");
-    loginGate.style.display = "none";
-    updateAuthUI(null);
-  });
 
   // Nav Sign In Action
   navSignInBtn.addEventListener("click", () => {
@@ -539,12 +558,14 @@ async function initAuth() {
     if (loginGate) loginGate.style.display = "none";
   });
 
-  // Guest Mode Action
-  document.getElementById("btnGuestMode")?.addEventListener("click", () => {
+  // Guest Mode Actions
+  const handleGuest = () => {
     localStorage.setItem(GUEST_MODE_KEY, "true");
     if (loginGate) loginGate.style.display = "none";
     updateAuthUI(null);
-  });
+  };
+  document.getElementById("btnGuestMode")?.addEventListener("click", handleGuest);
+  document.getElementById("guestContinueBtn")?.addEventListener("click", handleGuest);
 
   // Sign Out Action
   logoutBtn.addEventListener("click", () => {
@@ -563,6 +584,7 @@ async function initAuth() {
     updateAuthUI(null);
   }
 
+  // Fetch Public Config for Google OAuth
   initGoogleAuth();
 }
 
@@ -625,7 +647,7 @@ function setupGoogleSignIn(clientId, attempt = 0) {
       "Google Sign-In didn't load. This is almost always an ad blocker or " +
       "privacy extension blocking accounts.google.com, a blocked/offline network, " +
       "or this URL not being added to the OAuth client's \"Authorized JavaScript " +
-      "origins\" in Google Cloud Console. You can continue as guest below in the meantime.";
+      "origins\" in Google Cloud Console. Please check settings and refresh.";
   }
 }
 
@@ -704,8 +726,18 @@ function updateAuthUI(user) {
   if (user) {
     userInfoWrap.hidden = false;
     navSignInBtn.hidden = true;
-    userAvatar.src = user.picture || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23f59e0b'/%3E%3C/svg%3E";
-    userName.textContent = user.name || user.email;
+
+    const displayName = user.name || user.email || "Investigator";
+    const initialChar = displayName.charAt(0).toUpperCase();
+    const initialSvg = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36' viewBox='0 0 36 36'%3E%3Ccircle cx='18' cy='18' r='17' fill='%23ff0040' stroke='%23ffffff' stroke-width='1.5'/%3E%3Ctext x='18' y='23' font-family='sans-serif' font-size='16' font-weight='bold' fill='%23ffffff' text-anchor='middle'%3E${initialChar}%3C/text%3E%3C/svg%3E`;
+
+    userAvatar.setAttribute("referrerpolicy", "no-referrer");
+    userAvatar.onerror = function() {
+      this.onerror = null;
+      this.src = initialSvg;
+    };
+    userAvatar.src = user.picture || initialSvg;
+    userName.textContent = displayName;
     loadHistory();
   } else {
     userInfoWrap.hidden = true;
@@ -1230,15 +1262,12 @@ async function runAnalysis(kind) {
   form.append("file", file);
 
   try {
-    const res = await fetch(`${API_BASE}/api/analyze/${kind}`, {
+    const data = await safeFetchJson(`${API_BASE}/api/analyze/${kind}`, {
       method: "POST",
       headers: authHeaders(),
       body: form,
       credentials: "include",
     });
-
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || "Forensic analysis failed.");
 
     if (statusEl) statusEl.textContent = `Completed in ${data.processing_ms}ms`;
     renderResults(data);
@@ -1261,6 +1290,9 @@ const SIGNAL_LABELS = {
   noise_inconsistency_score: "Sensor-Noise Inconsistency",
   facial_symmetry_score: "Facial Geometry Symmetry Deviation",
   avg_frame_artifact_score: "Avg. Frame Artifact Density",
+  top_frame_artifact_score: "Peak Frame Artifact Density",
+  temporal_warp_jitter_score: "Inter-Frame Temporal Warping (Jitter)",
+  face_boundary_discontinuity_score: "Face Boundary Seam Discontinuity",
   blink_rate_anomaly_score: "Blink-Rate Anomaly Score",
   temporal_consistency_score: "Optical Flow Temporal Consistency",
   pitch_smoothness_anomaly: "Pitch-Contour Over-Smoothing",
@@ -1539,15 +1571,12 @@ async function runThreatScan() {
   resultsEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
 
   try {
-    const res = await fetch(`${API_BASE}/api/scan`, {
+    const data = await safeFetchJson(`${API_BASE}/api/scan`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({ target }),
       credentials: "include",
     });
-
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || "Scan failed.");
 
     lastScanResult = data;
     renderIntelResults(data);
@@ -1647,15 +1676,13 @@ async function askIntelChat() {
   log.scrollTop = log.scrollHeight;
 
   try {
-    const res = await fetch(`${API_BASE}/api/chat`, {
+    const data = await safeFetchJson(`${API_BASE}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({ question, scan: lastScanResult }),
       credentials: "include",
     });
 
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || "Error getting answer.");
     aBubble.textContent = data.answer;
   } catch (err) {
     aBubble.textContent = `Error: ${err.message}`;

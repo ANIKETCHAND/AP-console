@@ -558,12 +558,14 @@ async function initAuth() {
     if (loginGate) loginGate.style.display = "none";
   });
 
-  // Guest Mode Action
-  document.getElementById("btnGuestMode")?.addEventListener("click", () => {
+  // Guest Mode Actions
+  const handleGuest = () => {
     localStorage.setItem(GUEST_MODE_KEY, "true");
     if (loginGate) loginGate.style.display = "none";
     updateAuthUI(null);
-  });
+  };
+  document.getElementById("btnGuestMode")?.addEventListener("click", handleGuest);
+  document.getElementById("guestContinueBtn")?.addEventListener("click", handleGuest);
 
   // Sign Out Action
   logoutBtn.addEventListener("click", () => {
