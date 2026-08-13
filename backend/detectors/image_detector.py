@@ -29,13 +29,24 @@ production setting.
 """
 
 import io
-
-import cv2
 import numpy as np
-from PIL import Image
 
 try:
-    if hasattr(cv2, "CascadeClassifier") and hasattr(cv2, "data") and hasattr(cv2.data, "haarcascades"):
+    from PIL import Image
+    HAS_PIL = True
+except Exception:
+    Image = None
+    HAS_PIL = False
+
+try:
+    import cv2
+    HAS_CV2 = True
+except Exception:
+    cv2 = None
+    HAS_CV2 = False
+
+try:
+    if cv2 is not None and hasattr(cv2, "CascadeClassifier") and hasattr(cv2, "data") and hasattr(cv2.data, "haarcascades"):
         FACE_CASCADE = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
         EYE_CASCADE = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_eye.xml")
     else:

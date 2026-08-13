@@ -26,11 +26,18 @@ import numpy as np
 try:
     import librosa
     HAS_LIBROSA = True
-except ImportError:
+except Exception:
+    librosa = None
     HAS_LIBROSA = False
 
-from scipy.io import wavfile
-from scipy import signal
+try:
+    from scipy.io import wavfile
+    from scipy import signal
+    HAS_SCIPY = True
+except Exception:
+    wavfile = None
+    signal = None
+    HAS_SCIPY = False
 
 
 def _load(path, sr=22050):
