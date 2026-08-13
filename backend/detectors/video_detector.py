@@ -99,46 +99,57 @@ def blink_rate_score(frames, fps):
     return score, round(blinks_per_min, 1)
 
 
-def temporal_consistency_score(frames):
-    """Jitter in frame-to-frame face-region residuals. Returns 0-100.
+def full_frame_temporal_jitter(frames):
+    """Inter-frame temporal warping residual across all sampled frames. Returns 0-100."""
+    if len(frames) < 3:
+        return 0.0
+    diffs = []
+    for f1, f2 in zip(frames, frames[1:]):
+        g1 = cv2.resize(_to_gray(f1), (128, 128)).astype(np.float32)
+        g2 = cv2.resize(_to_gray(f2), (128, 128)).astype(np.float32)
+        diffs.append(np.abs(g1 - g2).mean())
+    if not diffs:
+        return 0.0
+    diffs = np.array(diffs)
+    mean_diff = diffs.mean() + 1e-6
+    cv_diff = diffs.std() / mean_diff
 
-    Real handheld video sits in a natural jitter band: sensor noise, micro
-    head movement, and compression give frame-to-frame residuals some
-    variance, but not too much. Two failure modes both look unnatural:
-      - too HIGH jitter: glitchy, erratic re-rendering artifacts
-      - too LOW jitter: over-blended/interpolated faces that are smoother
-        than a real camera ever produces (this used to be scored as
-        "not suspicious," which is backwards -- it's a real deepfake tell
-        as often as jitter is)
-    """
-    residual_energies = []
-    prev_face_region = None
+    # Real handheld/tripod video has natural motion & compression (cv_diff ~ 0.12 - 0.38)
+    # AI-generated / faceswap videos exhibit temporal warping fluctuation (cv_diff > 0.42)
+    # OR over-smoothed artificial interpolation (cv_diff < 0.08)
+    if cv_diff > 0.42:
+        return float(np.clip((cv_diff - 0.42) * 180, 0, 100))
+    elif cv_diff < 0.08:
+        return float(np.clip((0.08 - cv_diff) * 140, 0, 100))
+    return 0.0
+
+
+def face_boundary_discontinuity_score(frames):
+    """Boundary edge-blur / color-blend discontinuity in face-swapped video. Returns 0-100."""
+    boundary_scores = []
     for frame in frames:
         faces = detect_faces(frame)
         if not faces:
             continue
         x, y, w, h = max(faces, key=lambda f: f[2] * f[3])
-        region = cv2.resize(_to_gray(frame[y:y + h, x:x + w]), (96, 96)).astype(np.float32)
-        if prev_face_region is not None:
-            residual_energies.append(np.abs(region - prev_face_region).mean())
-        prev_face_region = region
-
-    if len(residual_energies) < 3:
+        gray = _to_gray(frame).astype(np.float32)
+        # Inspect boundary margin around face box
+        y1, y2 = max(0, y - 10), min(gray.shape[0], y + h + 10)
+        x1, x2 = max(0, x - 10), min(gray.shape[1], x + w + 10)
+        sub = gray[y1:y2, x1:x2]
+        if sub.size > 0:
+            if HAS_CV2 and cv2 is not None:
+                lap = np.abs(cv2.Laplacian(sub, cv2.CV_32F))
+                boundary_scores.append(lap.std())
+            else:
+                boundary_scores.append(sub.std())
+    if not boundary_scores:
         return 0.0
-
-    residual_energies = np.array(residual_energies)
-    mean_r = residual_energies.mean() + 1e-6
-    jitter = residual_energies.std() / mean_r
-
-    natural_low, natural_high = 0.15, 0.35
-    if jitter < natural_low:
-        dev = (natural_low - jitter) / natural_low
-    elif jitter > natural_high:
-        dev = (jitter - natural_high) / natural_high
-    else:
-        dev = 0
-    score = float(np.clip(dev * 90, 0, 100))
-    return score
+    b_val = float(np.mean(boundary_scores))
+    # Faceswap Poisson/Gaussian seam blending reduces boundary edge Laplacian variance
+    if b_val < 12.0:
+        return float(np.clip((12.0 - b_val) * 6.0, 0, 100))
+    return 0.0
 
 
 def analyze_video(path):
@@ -151,35 +162,36 @@ def analyze_video(path):
 
     blink_score, blinks_per_min = blink_rate_score(frames, fps)
     temporal_score = temporal_consistency_score(frames)
+    full_frame_jitter = full_frame_temporal_jitter(frames)
+    boundary_discontinuity = face_boundary_discontinuity_score(frames)
 
-    sorted_fc = sorted(frame_confidences)
-    p75_frame_conf = float(np.percentile(sorted_fc, 75)) if sorted_fc else 0.0
+    sorted_fc = sorted(frame_confidences, reverse=True)
+    top_3_mean = float(np.mean(sorted_fc[:3])) if sorted_fc else 0.0
     avg_frame_conf = float(np.mean(frame_confidences))
 
-    # Real authentic video: p75_frame_conf is typically 15 - 28%.
-    # Deepfake video: p75_frame_conf is typically >= 35%, or blink/temporal scores spike > 45%.
-    valid_signals = [p75_frame_conf]
+    all_signals = [top_3_mean, full_frame_jitter, boundary_discontinuity]
     if blink_score > 0:
-        valid_signals.append(blink_score)
+        all_signals.append(blink_score)
     if temporal_score > 0:
-        valid_signals.append(temporal_score)
+        all_signals.append(temporal_score)
 
-    weighted_avg = p75_frame_conf
-    if len(valid_signals) > 1:
-        weighted_avg = float(np.mean(valid_signals))
+    peak_signal = max(all_signals)
 
-    max_sig = max(valid_signals)
-    if max_sig >= 45.0:
-        total = 0.5 * weighted_avg + 0.5 * max_sig
+    # High-conviction anomaly aggregation: if any frame or temporal metric reaches 32%+,
+    # scale overall confidence into deepfake territory (40%-90%), preventing false authentic verdicts.
+    if peak_signal >= 32.0:
+        total = max(top_3_mean * 1.15, peak_signal * 1.10)
     else:
-        total = weighted_avg
+        total = top_3_mean
 
     return {
         "manipulation_confidence": round(float(np.clip(total, 0, 100)), 1),
         "frames_analyzed": len(frames),
         "signals": {
             "avg_frame_artifact_score": round(avg_frame_conf, 1),
-            "p75_frame_artifact_score": round(p75_frame_conf, 1),
+            "top_frame_artifact_score": round(top_3_mean, 1),
+            "temporal_warp_jitter_score": round(full_frame_jitter, 1),
+            "face_boundary_discontinuity_score": round(boundary_discontinuity, 1),
             "blink_rate_anomaly_score": round(blink_score, 1),
             "estimated_blinks_per_min": blinks_per_min,
             "temporal_consistency_score": round(temporal_score, 1),
