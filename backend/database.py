@@ -14,13 +14,17 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "ap_console.db")
-DATABASE_URL = os.environ.get("DATABASE_URL", f"sqlite:///{DB_PATH}")
+is_serverless = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
+if is_serverless:
+    DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///:memory:")
+    from sqlalchemy.pool import StaticPool
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False}, poolclass=StaticPool)
+else:
+    DB_PATH = os.path.join(os.path.dirname(__file__), "ap_console.db")
+    DATABASE_URL = os.environ.get("DATABASE_URL", f"sqlite:///{DB_PATH}")
+    _connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+    engine = create_engine(DATABASE_URL, connect_args=_connect_args)
 
-# SQLite needs this flag when accessed from multiple request threads.
-_connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
-
-engine = create_engine(DATABASE_URL, connect_args=_connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
