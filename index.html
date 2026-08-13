@@ -24,7 +24,8 @@
 
   <!-- AUTH / SIGN-IN GATE MODAL -->
   <div class="auth-overlay" id="loginGate">
-    <div class="auth-card">
+    <div class="auth-card" style="position:relative;">
+      <button class="modal-close-btn" onclick="document.getElementById('loginGate').style.display='none'" style="position:absolute; top:16px; right:16px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:#fff; border-radius:50%; width:32px; height:32px; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center;">✕</button>
       <div class="auth-header">
         <div class="brand-emblem">
           <img src="logo.jpg" alt="AP Consoles Logo" class="brand-logo-img modal-logo">
@@ -42,8 +43,8 @@
         </p>
 
         <div id="googleSignInBtn" class="google-btn-container"></div>
-        <button id="btnQuickAuth" class="btn-quick-auth" style="margin-top:12px; width:100%; padding:10px; background:linear-gradient(135deg, #00f2fe, #4facfe); border:none; border-radius:24px; color:#000; font-weight:700; font-family:inherit; cursor:pointer;">⚡ Authorized User Sign In (Aniket Chand)</button>
-        <button id="btnGuestMode" class="btn-guest-mode" style="margin-top:8px; width:100%; padding:8px; background:transparent; border:1px solid rgba(255,255,255,0.2); border-radius:24px; color:var(--text-muted); font-size:0.85rem; cursor:pointer;">Continue as Guest</button>
+        <button id="btnQuickAuth" class="btn-quick-auth" onclick="localStorage.setItem('ap_auth_token','authorized_dev_token_2026'); localStorage.setItem('ap_auth_user',JSON.stringify({sub:'1001',email:'caniket2007@gmail.com',name:'Aniket Chand'})); document.getElementById('loginGate').style.display='none'; if(window.updateAuthUI) window.updateAuthUI({name:'Aniket Chand',email:'caniket2007@gmail.com'});" style="margin-top:12px; width:100%; padding:10px; background:linear-gradient(135deg, #00f2fe, #4facfe); border:none; border-radius:24px; color:#000; font-weight:700; font-family:inherit; cursor:pointer;">⚡ Authorized User Sign In (Aniket Chand)</button>
+        <button id="btnGuestMode" class="btn-guest-mode" onclick="localStorage.setItem('ap_guest_mode','true'); document.getElementById('loginGate').style.display='none';" style="margin-top:8px; width:100%; padding:8px; background:transparent; border:1px solid rgba(255,255,255,0.2); border-radius:24px; color:var(--text-muted); font-size:0.85rem; cursor:pointer;">Continue as Guest</button>
         <p class="login-hint" id="loginHint"></p>
       </div>
     </div>
@@ -527,6 +528,6 @@
 
   </div><!-- /app-shell -->
 
-  <script src="script.js"></script>
+  <script src="script.js?v=20260813_v5"></script>
 </body>
 </html>
