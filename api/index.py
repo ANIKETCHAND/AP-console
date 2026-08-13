@@ -9,10 +9,4 @@ if backend_dir not in sys.path:
 if base_dir not in sys.path:
     sys.path.insert(0, base_dir)
 
-try:
-    from app import app as fastapi_app
-except ImportError:
-    from backend.app import app as fastapi_app
-
-app = fastapi_app
-handler = fastapi_app
+from app import app
