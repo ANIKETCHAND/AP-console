@@ -25,16 +25,7 @@ import datetime
 import asyncio
 from typing import Optional
 
-try:
-    import cv2
-    HAS_CV2 = True
-except Exception:
-    cv2 = None
-    HAS_CV2 = False
-
-import io
-import numpy as np
-from PIL import Image
+import cv2
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -42,7 +33,6 @@ load_dotenv()
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 # ---- media forensics detectors ----
@@ -93,13 +83,11 @@ def _user_public(user: User) -> dict:
     return {"id": user.id, "email": user.email, "name": user.name, "picture": user.picture}
 
 
-DEFAULT_GOOGLE_CLIENT_ID = "687301933144-sg19vagv8e3g4bsdglsgpu0hglf5aqie.apps.googleusercontent.com"
-
 @app.get("/api/config")
 @app.get("/api/auth/config")
 def get_config():
     """Public config the frontend needs before it can render the login button."""
-    client_id = os.environ.get("GOOGLE_CLIENT_ID") or DEFAULT_GOOGLE_CLIENT_ID
+    client_id = os.environ.get("GOOGLE_CLIENT_ID", "")
     return {"enabled": bool(client_id), "google_client_id": client_id}
 
 
@@ -233,7 +221,7 @@ MAX_FILE_MB = 80
 
 
 def _verdict(confidence):
-    if confidence >= 48.0:
+    if confidence >= 45.0:
         return "likely_manipulated"
     return "likely_authentic"
 
@@ -264,32 +252,19 @@ async def analyze_image_endpoint(file: UploadFile = File(...), user: Optional[Us
     tmp_path = _save_temp(file, IMAGE_EXTS)
     try:
         start = time.time()
+        img = cv2.imread(tmp_path)
+        if img is None:
+            raise HTTPException(400, "Could not decode image file.")
         with open(tmp_path, "rb") as f:
             raw_bytes = f.read()
-
-        img = None
-        if HAS_CV2 and cv2 is not None:
-            try:
-                img = cv2.imread(tmp_path)
-            except Exception:
-                img = None
-
-        if img is None:
-            try:
-                pil_img = Image.open(io.BytesIO(raw_bytes)).convert("RGB")
-                img = np.array(pil_img)[:, :, ::-1]  # RGB to BGR
-            except Exception:
-                raise HTTPException(400, "Could not decode image file.")
-
-        result = analyze_image(img, raw_bytes=raw_bytes, filename=file.filename)
+        result = analyze_image(img, raw_bytes=raw_bytes)
         result["verdict"] = _verdict(result["manipulation_confidence"])
         result["processing_ms"] = round((time.time() - start) * 1000, 1)
         result["media_type"] = "image"
         _save_case(user, "image", file.filename, result["verdict"], result["manipulation_confidence"], result)
         return result
     finally:
-        if os.path.exists(tmp_path):
-            os.remove(tmp_path)
+        os.remove(tmp_path)
 
 
 @app.post("/api/analyze/video")
@@ -297,7 +272,7 @@ async def analyze_video_endpoint(file: UploadFile = File(...), user: Optional[Us
     tmp_path = _save_temp(file, VIDEO_EXTS)
     try:
         start = time.time()
-        result = analyze_video(tmp_path, filename=file.filename)
+        result = analyze_video(tmp_path)
         if "error" in result:
             raise HTTPException(400, result["error"])
         result["verdict"] = _verdict(result["manipulation_confidence"])
@@ -314,7 +289,7 @@ async def analyze_audio_endpoint(file: UploadFile = File(...), user: Optional[Us
     tmp_path = _save_temp(file, AUDIO_EXTS)
     try:
         start = time.time()
-        result = analyze_audio(tmp_path, filename=file.filename)
+        result = analyze_audio(tmp_path)
         if "error" in result:
             raise HTTPException(400, result["error"])
         result["verdict"] = _verdict(result["manipulation_confidence"])
@@ -442,27 +417,6 @@ async def chat(req: ChatRequest):
 # Serve the frontend (static build) if present, so `uvicorn app:app`
 # alone is enough to demo the whole platform.
 # =====================================================================
-possible_dirs = [
-    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend")),
-    os.path.abspath(os.path.join(os.path.dirname(__file__), "frontend")),
-    os.path.abspath(os.path.join(os.getcwd(), "..", "frontend")),
-    os.path.abspath(os.path.join(os.getcwd(), "frontend")),
-    "/app/frontend"
-]
-
-FRONTEND_DIR = None
-for d in possible_dirs:
-    if os.path.isdir(d) and os.path.exists(os.path.join(d, "index.html")):
-        FRONTEND_DIR = d
-        break
-
-if FRONTEND_DIR and not os.environ.get("VERCEL"):
-    @app.get("/")
-    async def serve_index():
-        return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
-
+FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend")
+if os.path.isdir(FRONTEND_DIR):
     app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
-else:
-    @app.get("/")
-    async def fallback_index():
-        return {"status": "ok", "message": "AP Consoles Platform API Running."}

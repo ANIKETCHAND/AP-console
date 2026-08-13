@@ -26,8 +26,7 @@ from google.auth.transport import requests as google_requests
 from database import SessionLocal
 from models import User
 
-DEFAULT_GOOGLE_CLIENT_ID = "687301933144-sg19vagv8e3g4bsdglsgpu0hglf5aqie.apps.googleusercontent.com"
-GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID") or DEFAULT_GOOGLE_CLIENT_ID
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 JWT_SECRET = os.environ.get("JWT_SECRET", "dev-secret-change-me")
 JWT_ALGO = "HS256"
 JWT_EXPIRE_DAYS = 7

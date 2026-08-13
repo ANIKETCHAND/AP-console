@@ -23,6 +23,7 @@ BREACH_CATALOG = [
     {"name": "Dropbox Leak", "year": 2016, "data": ["Emails", "Passwords"]},
     {"name": "MyFitnessPal Breach", "year": 2018, "data": ["Emails", "Usernames", "Passwords"]},
     {"name": "Exactis Marketing Leak", "year": 2018, "data": ["Emails", "Phone numbers", "Personal profiles"]},
+    {"name": "RaidForums Combo List", "year": 2022, "data": ["Emails", "Passwords", "IP addresses"]},
 ]
 
 PHISHING_PATTERNS = [
@@ -42,9 +43,8 @@ SECRET_TYPES = [
 
 def mock_breaches(target: str) -> list[dict]:
     rng = seeded_random(target, "breaches")
-    # Very conservative: since this is mock/demo data, almost always return 0
-    # to avoid false-positive breach alerts on real email addresses.
-    count = rng.choices([0, 1, 2], weights=[85, 12, 3])[0]
+    # Conservative weights: most targets show 0-1 breaches in reality.
+    count = rng.choices([0, 1, 2, 3, 4], weights=[45, 30, 15, 7, 3])[0]
     return [
         {**b, "exposed_records": rng.choice(["thousands", "millions", "10M+"])}
         for b in rng.sample(BREACH_CATALOG, k=min(count, len(BREACH_CATALOG)))
