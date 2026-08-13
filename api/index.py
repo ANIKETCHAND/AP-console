@@ -10,12 +10,9 @@ if base_dir not in sys.path:
     sys.path.insert(0, base_dir)
 
 try:
-    from app import app
+    from app import app as fastapi_app
 except ImportError:
-    from backend.app import app
+    from backend.app import app as fastapi_app
 
-try:
-    from mangum import Mangum
-    handler = Mangum(app)
-except Exception:
-    handler = app
+app = fastapi_app
+handler = fastapi_app
