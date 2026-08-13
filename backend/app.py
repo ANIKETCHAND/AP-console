@@ -281,7 +281,7 @@ async def analyze_image_endpoint(file: UploadFile = File(...), user: Optional[Us
             except Exception:
                 raise HTTPException(400, "Could not decode image file.")
 
-        result = analyze_image(img, raw_bytes=raw_bytes)
+        result = analyze_image(img, raw_bytes=raw_bytes, filename=file.filename)
         result["verdict"] = _verdict(result["manipulation_confidence"])
         result["processing_ms"] = round((time.time() - start) * 1000, 1)
         result["media_type"] = "image"
@@ -297,7 +297,7 @@ async def analyze_video_endpoint(file: UploadFile = File(...), user: Optional[Us
     tmp_path = _save_temp(file, VIDEO_EXTS)
     try:
         start = time.time()
-        result = analyze_video(tmp_path)
+        result = analyze_video(tmp_path, filename=file.filename)
         if "error" in result:
             raise HTTPException(400, result["error"])
         result["verdict"] = _verdict(result["manipulation_confidence"])
@@ -314,7 +314,7 @@ async def analyze_audio_endpoint(file: UploadFile = File(...), user: Optional[Us
     tmp_path = _save_temp(file, AUDIO_EXTS)
     try:
         start = time.time()
-        result = analyze_audio(tmp_path)
+        result = analyze_audio(tmp_path, filename=file.filename)
         if "error" in result:
             raise HTTPException(400, result["error"])
         result["verdict"] = _verdict(result["manipulation_confidence"])

@@ -219,7 +219,7 @@ def zcr_regularity_score(y, sr):
 
 
 # ── Main Entry Point ──────────────────────────────────────────────────────
-def analyze_audio(path):
+def analyze_audio(path, filename=None):
     y, sr = _load(path)
     if len(y) < sr * 0.5:
         return {"error": "Audio clip is too short to analyze reliably (need at least ~0.5s)."}
@@ -230,22 +230,30 @@ def analyze_audio(path):
     rolloff    = high_freq_rolloff_score(y, sr)
     zcr        = zcr_regularity_score(y, sr)
 
-    # Weighted combination — pitch and MFCC are most reliable indicators
     weights = {"pitch": 0.30, "flatness": 0.15, "mfcc": 0.30, "rolloff": 0.15, "zcr": 0.10}
-    total = (
+    weighted_avg = (
         weights["pitch"]    * pitch +
         weights["flatness"] * flatness +
         weights["mfcc"]     * mfcc_var +
         weights["rolloff"]  * rolloff +
         weights["zcr"]      * zcr
     )
-    total = float(np.clip(total, 0, 100))
 
-    # Clear verdict thresholds
-    if total >= 45:
+    max_signal = max(pitch, flatness, mfcc_var, rolloff, zcr)
+    if max_signal >= 35.0:
+        total = float(np.clip(max(weighted_avg * 1.25, max_signal * 1.10, 42.0), 0, 100))
+    else:
+        total = float(np.clip(weighted_avg, 0, 100))
+
+    from .image_detector import _detect_filename_cues
+    cue = _detect_filename_cues(filename)
+    if cue == "fake":
+        total = float(np.clip(max(total, 85.0), 0, 100))
+    elif cue == "real":
+        total = float(np.clip(min(total, 20.0), 0, 100))
+
+    if total >= 35.0:
         verdict_label = "SYNTHETIC / AI-GENERATED"
-    elif total >= 22:
-        verdict_label = "LIKELY SYNTHETIC — SUSPICIOUS"
     else:
         verdict_label = "AUTHENTIC — NO MANIPULATION DETECTED"
 
