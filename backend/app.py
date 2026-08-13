@@ -51,7 +51,10 @@ from auth import verify_google_token, issue_session_token, get_current_user, get
 
 app = FastAPI(title="AP — Authenticity & Provenance Console API", version="1.0")
 
-init_db()
+try:
+    init_db()
+except Exception as e:
+    print("Database init notice:", e)
 
 app.add_middleware(
     CORSMiddleware,
