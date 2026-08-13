@@ -574,22 +574,12 @@ async function initAuth() {
   const user = getAuthUser();
 
   if (token && user) {
-    loginGate.style.display = "none";
+    if (loginGate) loginGate.style.display = "none";
     updateAuthUI(user);
-    // Quietly verify token
-    try {
-      const res = await fetch(`${API_BASE}/api/auth/me`, {
-        headers: authHeaders(),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error();
-    } catch {
-      logout();
-    }
   } else {
-    // Require Google Login before using the console
+    // Show login modal if not logged in
     localStorage.removeItem(GUEST_MODE_KEY);
-    loginGate.style.display = "flex";
+    if (loginGate) loginGate.style.display = "flex";
     updateAuthUI(null);
   }
 

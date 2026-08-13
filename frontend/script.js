@@ -555,22 +555,12 @@ async function initAuth() {
   const user = getAuthUser();
 
   if (token && user) {
-    loginGate.style.display = "none";
+    if (loginGate) loginGate.style.display = "none";
     updateAuthUI(user);
-    // Quietly verify token
-    try {
-      const res = await fetch(`${API_BASE}/api/auth/me`, {
-        headers: authHeaders(),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error();
-    } catch {
-      logout();
-    }
   } else {
     // Default to Guest Mode so user immediately enters console without modal popup
     localStorage.setItem(GUEST_MODE_KEY, "true");
-    loginGate.style.display = "none";
+    if (loginGate) loginGate.style.display = "none";
     updateAuthUI(null);
   }
 
