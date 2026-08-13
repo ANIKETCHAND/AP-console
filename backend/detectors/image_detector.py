@@ -140,9 +140,9 @@ def frequency_artifact_score(img_bgr):
     ratio = high_energy / (low_energy + 1e-6)
 
     # Real camera photos: high-frequency ratio is typically <= 0.40.
-    # GAN / diffusion upsampling produces unnatural spiky high-frequency ratio (> 0.45).
-    if ratio > 0.45:
-        score = np.clip((ratio - 0.45) * 180, 0, 100)
+    # GAN / diffusion upsampling produces unnatural spiky high-frequency ratio (> 0.48).
+    if ratio > 0.48:
+        score = np.clip((ratio - 0.48) * 150, 0, 100)
     else:
         score = 0.0
 
@@ -158,8 +158,8 @@ def frequency_artifact_score(img_bgr):
     periodicity = 0.0
     if bucket_vals.std() > 1e-5:
         z_max = (bucket_vals.max() - bucket_vals.mean()) / bucket_vals.std()
-        if z_max > 4.5:
-            periodicity = float(np.clip((z_max - 4.5) * 30, 0, 100))
+        if z_max > 5.0:
+            periodicity = float(np.clip((z_max - 5.0) * 25, 0, 100))
 
     return float(np.clip(0.6 * score + 0.4 * periodicity, 0, 100))
 
@@ -289,8 +289,11 @@ def analyze_image(img_bgr, raw_bytes=None):
     valid_signals = [s for s in [freq, ela, noise, symmetry] if s is not None]
     max_signal = max(valid_signals) if valid_signals else 0.0
 
-    # Combine weighted average with peak signal indicator so single high-conviction anomalies trigger detection
-    confidence = float(np.clip(0.60 * weighted_avg + 0.40 * max_signal, 0, 100))
+    # If any single signal exceeds 50%, apply a peak anomaly boost; otherwise use weighted average
+    if max_signal > 50.0:
+        confidence = float(np.clip(0.60 * weighted_avg + 0.40 * max_signal, 0, 100))
+    else:
+        confidence = float(np.clip(weighted_avg, 0, 100))
 
     return {
         "manipulation_confidence": round(confidence, 1),
