@@ -78,46 +78,6 @@
 | 🕵️ | **Threat Intel** | Breach data, phishing look-alikes, exposed secrets, exposed infra, ransomware mentions, AI risk summary + chat |
 | 🕓 | **Case History** | Every signed-in scan is saved & reopenable, filterable by type, private per user |
 
----
-
-## 🏗️ Architecture
-
-```mermaid
-flowchart LR
-    subgraph FE["🖥️ Frontend — HTML / CSS / JS"]
-        UI["Login + 6 Exhibits\nImage · Video · Voice · Live Feed · Threat Intel · History"]
-    end
-
-    subgraph BE["⚡ FastAPI Backend"]
-        AUTH["Google Sign-In + JWT Sessions"]
-        API["REST API Layer"]
-        DB[("SQLite / SQLAlchemy\nUsers + Case History")]
-
-        subgraph DET["🔬 Media Forensics"]
-            IMG["Image: FFT · ELA · Noise · Symmetry"]
-            VID["Video: Frame Sampling · Blink Rate"]
-            AUD["Audio: Pitch · Spectral · MFCC"]
-        end
-
-        subgraph CHK["🕵️ Threat Intel Checkers"]
-            HIBP["Breach Check — HIBP"]
-            VT["Reputation — VirusTotal"]
-            GH["Exposed Secrets — GitHub Search"]
-            SHODAN["Exposed Infra — Shodan"]
-            AI["AI Risk Summary — OpenAI"]
-        end
-    end
-
-    UI -->|Upload / Scan| API
-    UI -->|Sign in| AUTH
-    AUTH --> API
-    API --> DET
-    API --> CHK
-    API <--> DB
-    DET --> API
-    CHK --> API
-    API -->|Results + Verdict| UI
-```
 
 ---
 
@@ -325,9 +285,6 @@ No `LICENSE` file was found in the repository at the time this README was writte
 
 <div align="center">
 
-### ⭐ Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=ANIKETCHAND/AP-console&type=Date)](https://star-history.com/#ANIKETCHAND/AP-console&Date)
 
 Made with 🕵️‍♂️ by [**ANIKETCHAND**](https://github.com/ANIKETCHAND)
 
