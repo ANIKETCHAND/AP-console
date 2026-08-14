@@ -269,11 +269,6 @@ The repo ships ready for multiple deployment paths:
 
 ---
 
-## 📜 License
-
-No `LICENSE` file was found in the repository at the time this README was written. Until one is added, default copyright applies (all rights reserved). If you intend to share or open-source this project, consider adding an [MIT](https://choosealicense.com/licenses/mit/) or similar license.
-
----
 
 <div align="center">
 
