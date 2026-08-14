@@ -186,12 +186,6 @@ Every media analysis and threat-intel scan a signed-in user runs is saved to the
 
 Max upload size: 80MB (`MAX_FILE_MB` in `app.py`). A valid Bearer token also saves the result to that user's case history.
 
-**Threat intel**
-
-| Method | Path | Body | Returns |
-|---|---|---|---|
-| POST | `/api/scan` | `{"target": "domain-or-email"}` (+ optional Bearer token) | breaches, phishing domains, exposed secrets, exposed infra, ransomware mentions, risk level, actions, AI summary |
-| POST | `/api/chat` | `{"question": "...", "scan": {...}}` | plain-language answer about a specific scan result |
 
 **Shared**
 
