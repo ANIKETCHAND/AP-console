@@ -204,8 +204,6 @@ See the detector docstrings for references, and consider upgrading to a trained 
 
 ## 🕵️ Threat Intel — What's Real vs. Mock
 
-<img src="earth-bg.png" width="100%" alt="Threat intel globe background" />
-
 | Checker | Live when... | Free? |
 |---|---|---|
 | Leaked credentials | `HIBP_API_KEY` set (email targets only) | No — HIBP is ~$3.95/mo |
